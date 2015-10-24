@@ -4,3 +4,10 @@ body {
 .navbar-text .label {
     font-size: 100%;
 }
+@media screen and (max-width: 767px) {
+  .container .jumbotron,
+  .container-fluid .jumbotron {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+}

@@ -396,30 +396,30 @@ $( document ).ready(function () {
                 $('.jumbotron h1').text('Analysing ...');
                 $('.jumbotron p').text(zone);
                 $('.jumbotron .form-group, div.row, .alert').fadeOut('fast').promise().done(function () {
-                    $('.jumbotron .progress').fadeIn('fast');
-                });
+                    $('.jumbotron .progress').fadeIn('fast').promise().done(function () {
+                        $.ajax({
+                            dataType: 'json',
+                            url: '/zonalizer/1/analyze',
+                            data: {
+                                zone: zone
+                            },
+                            method: 'POST'
+                        })
+                        .done(function (data) {
+                            if (typeof data === 'object' && data.id) {
+                                zonalizer.analyze._id = data.id;
+                                zonalizer.analyze.start();
+                                return;
+                            }
 
-                $.ajax({
-                    dataType: 'json',
-                    url: '/zonalizer/1/analyze',
-                    data: {
-                        zone: zone
-                    },
-                    method: 'POST'
-                })
-                .done(function (data) {
-                    if (typeof data === 'object' && data.id) {
-                        zonalizer.analyze._id = data.id;
-                        zonalizer.analyze.start();
-                        return;
-                    }
-
-                    zonalizer.api.error();
-                    zonalizer.analyze.fail();
-                })
-                .fail(function () {
-                    zonalizer.api.down();
-                    zonalizer.analyze.fail();
+                            zonalizer.api.error();
+                            zonalizer.analyze.fail();
+                        })
+                        .fail(function (xhr, textStatus) {
+                            zonalizer.api.down();
+                            zonalizer.analyze.fail();
+                        });
+                    });
                 });
             },
             display: function (result) {
