@@ -396,7 +396,8 @@ $( document ).ready(function () {
                 $('.jumbotron h1').text('Analysing ...');
                 $('.jumbotron p').text(zone);
                 $('.jumbotron .form-group, div.row, .alert').fadeOut('fast').promise().done(function () {
-                    $('.jumbotron .progress').fadeIn('fast').promise().done(function () {
+                    $('.container > p').empty();
+                    $('.jumbotron .progress, .container > p').fadeIn('fast').promise().done(function () {
                         $.ajax({
                             dataType: 'json',
                             url: '/zonalizer/1/analyze',
