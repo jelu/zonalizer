@@ -174,8 +174,7 @@ $( document ).ready(function () {
                     dataType: 'json',
                     url: '/zonalizer/1/analyze',
                     data: {
-                        id: id,
-                        result: 0
+                        id: id
                     },
                     method: 'GET'
                 })
@@ -294,7 +293,8 @@ $( document ).ready(function () {
                                 dataType: 'json',
                                 url: '/zonalizer/1/analyze',
                                 data: {
-                                    id: id
+                                    id: id,
+                                    result: 1
                                 },
                                 method: 'GET'
                             })
@@ -350,7 +350,8 @@ $( document ).ready(function () {
                     dataType: 'json',
                     url: '/zonalizer/1/analyze',
                     data: {
-                        id: id
+                        id: id,
+                        result: 1
                     },
                     method: 'GET'
                 })
