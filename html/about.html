@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Zonalizer - Powered by Zonemaster</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.5/darkly/bootstrap.min.css">
+    <link rel="stylesheet" href="zonalizer.css?1">
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+        <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+</head>
+<body>
+    <nav class="navbar navbar-default navbar-fixed-top">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-main">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <span class="navbar-brand">Zonalizer</span>
+            </div>
+            <div id="navbar-main" class="collapse navbar-collapse">
+                <ul class="nav navbar-nav">
+                    <li><a href="/">Analyze</a></li>
+                    <li class="active"><a href="/about.html">About <span class="sr-only">(current)</span></a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <div class="page-header">
+            <div class="jumbotron">
+                <h1>About Zonalizer</h1>
+            </div>
+        </div>
+        <h1 id="zonalizer">Zonalizer</h1>
+        <p>
+            Zonalizer is a web application which uses a backend <a href="#api">API</a> to test DNS zones using <a href="#zonemaster">Zonemaster</a>.
+            It uses <a href="https://jquery.com">JQuery</a> to get information from the backend about ongoing processes and to displays them as interactivly as possible.
+            Future versions will have a section to list and browse all tests and may have ways to analyze and display statistics about them.
+        </p>
+        <h1 id="zonemaster">Zonemaster</h1>
+        <p>
+            The <a href="https://github.com/dotse/zonemaster">Zonemaster</a> system is a quality control tool for DNS zones, produced in cooperation between <a href="https://www.afnic.fr/">AFNIC</a> and <a href="https://www.iis.se">IIS</a> (the top-level registries for respectively France and Sweden).
+            It is a successor both to AFNIC's tool Zonecheck and IIS's tool DNSCheck, and is intended to be an improvement over both.
+            More information can be found on the <a href="http://search.cpan.org/~iis/Zonemaster/lib/Zonemaster/Overview.pod">Zonemaster::Overview</a> POD page.
+        </p>
+        <h1 id="help">Wanna help? Donate?</h1>
+        <p>
+            If you want to help with the code then fork away and make pull requests.
+            But be aware that this is very much in the early stage so things can change fast, be redesigned etc.
+        </p>
+        <p>
+            If you wish to help in other ways then I am really in need of VPS/VM's to run the software on.
+            It's currently running on Amazon EC2 using the free tier program and that won't last, hit me up via <a href="https://github.com/jelu">GitHub</a>/<a href="https://twitter.com/lundstromjerry">Twitter</a> if want to help with this.
+        </p>
+        <h1 id="api">API</h1>
+        <p>
+            Zonalizer's backend API uses the framework <a href="https://github.com/jelu/lim">Lim</a> for easy exposure of functionality over REST.
+            The design of the API is centered around <a href="https://en.wikipedia.org/wiki/HATEOAS">HATEOAS</a> with addition of cursor-based pagination.
+            Future versions will also have a worker module to distribute the work over backend nodes using <a href="https://www.rabbitmq.com/">RabbitMQ</a>.
+        </p>
+
+        <div class="alert alert-warning">
+            <p class="lead">
+                Currently the API is very limited because its still in development.
+            </p>
+        </div>
+
+        <h3>GET /zonalizer/1/version</h3>
+        <p>
+            Get the version of Zonalizer's backend API module.
+        </p>
+        <div class="panel panel-default">
+            <div class="panel-body">
+<pre>
+{
+    "version" : "0.10"
+}
+</pre>
+            </div>
+        </div>
+        <h3>GET /zonalizer/1/status</h3>
+        <p>
+            Get API statistics and status about running and completed tests.
+        </p>
+        <div class="panel panel-default">
+            <div class="panel-body">
+<pre>
+{
+   "api" : {
+      "requests" : 501,
+      "errors" : 0
+   },
+   "tests" : {
+      "ongoing" : 0,
+      "completed" : 5,
+      "failed" : 0
+   }
+}
+</pre>
+            </div>
+        </div>
+        <h3>POST /zonalizer/1/analyze?zone=:zone</h3>
+        <p>
+            Start a new analysis of a zone and return an ID which can be used to retrieve the status and results.
+        </p>
+        <div class="panel panel-default">
+            <div class="panel-body">
+<pre>
+{
+   "id" : "pd6QwWWwTzao-I8SrOMObQ"
+}
+</pre>
+            </div>
+        </div>
+        <h3>GET /zonalizer/1/analyze/:id</h3>
+        <p>
+            Get the status of an analysis.
+        </p>
+        <div class="panel panel-default">
+            <div class="panel-body">
+<pre>
+{
+   "updated" : 1445849210,
+   "created" : 1445849194,
+   "progress" : 70,
+   "zone" : "example.com",
+   "id" : "pd6QwWWwTzao-I8SrOMObQ",
+   "status" : "analyzing"
+}
+</pre>
+            </div>
+        </div>
+        <h3>GET /zonalizer/1/analyze/:id?result=1</h3>
+        <p>
+            Get the results of an analysis.
+        </p>
+        <div class="panel panel-default">
+            <div class="panel-body">
+<pre>
+{
+   "zone" : "example.com",
+   "id" : "pd6QwWWwTzao-I8SrOMObQ",
+   "updated" : 1445846105,
+   "progress" : 100,
+   "created" : 1445846091,
+   "status" : "analyzing",
+   "result" : [
+      ...
+      {
+         "args" : {
+            "required_refresh" : 14400,
+            "refresh" : 7200
+         },
+         "level" : "NOTICE",
+         "timestamp" : 15.4495520591736,
+         "module" : "ZONE",
+         "_id" : 59,
+         "message" : "SOA 'refresh' value (7200) is less than the recommended one (14400).",
+         "tag" : "REFRESH_MINIMUM_VALUE_LOWER"
+      },
+      ...
+   ]
+}
+</pre>
+            </div>
+        </div>
+        <footer class="footer">
+            <p>
+                Fork me on GitHub; <a href="https://github.com/jelu/zonalizer">Zonalizer</a>, <a href="https://github.com/jelu/lim-plugin-zonalizer">Lim::Plugin::Zonalizer</a>.
+                Powered by <a href="https://github.com/dotse/zonemaster-engine">Zonemaster</a>, <a href="https://github.com/jelu/lim">Lim</a>, <a href="https://jquery.com">jQuery</a>, <a href="https://getbootstrap.com">Bootstrap</a>, <a href="https://bootswatch.com/darkly">Bootswatch's Darkly</a>.
+            </p>
+        </footer>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script src="ie10-viewport-bug-workaround.js?1"></script>
+    <script src="jquery-visibility.min.js?1"></script>
+
+</body>
+</html>

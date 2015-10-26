@@ -4,6 +4,17 @@ body {
 .navbar-text .label {
     font-size: 100%;
 }
+footer {
+    padding-top: 30px;
+}
+.panel-body pre {
+    padding: 0;
+    margin: 0;
+    color: #fff;
+    background-color: #303030;
+    border: 0;
+    border-radius: 0;
+}
 @media screen and (max-width: 767px) {
   .container .jumbotron,
   .container-fluid .jumbotron {
