@@ -470,10 +470,21 @@ $( document ).ready(function () {
         $('.alert').fadeOut('fast');
     });
 
+    $('form button').prop('disabled', true);
+    $('input:eq(0)').on('input propertychange paste', function() {
+        var zone = $('input:eq(0)').val();
+
+        if (zone && zone.match(/^[a-zA-Z0-9\.-]+$/)) {
+            $('form button').prop('disabled', false);
+        }
+        else {
+            $('form button').prop('disabled', true);
+        }
+    });
     $('form').submit(function (event) {
         var zone = $('input:eq(0)').val();
 
-        if (zone) {
+        if (zone && zone.match(/^[a-zA-Z0-9\.-]+$/)) {
             zonalizer.mini.stop();
             zonalizer.status.stop();
             zonalizer.analyze.zone(zone);
