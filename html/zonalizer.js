@@ -68,13 +68,13 @@ $( document ).ready(function () {
                     method: 'GET'
                 })
                 .done(function (data) {
-                    if (data.tests && typeof data.tests === 'object' && data.tests.ongoing !== undefined && data.tests.completed !== undefined && data.tests.failed !== undefined) {
-                        $('.row .panel-body dd:eq(0)').text(data.tests.ongoing);
-                        $('.row .panel-body dd:eq(1)').text(data.tests.completed);
-                        $('.row .panel-body dd:eq(2)').text(data.tests.failed);
+                    if (data.analysis && typeof data.analysis === 'object' && data.analysis.ongoing !== undefined && data.analysis.completed !== undefined && data.analysis.failed !== undefined) {
+                        $('.row .panel-body dd:eq(0)').text(data.analysis.ongoing);
+                        $('.row .panel-body dd:eq(1)').text(data.analysis.completed);
+                        $('.row .panel-body dd:eq(2)').text(data.analysis.failed);
                         zonalizer.api.ok();
 
-                        if (parseInt(data.tests.ongoing)) {
+                        if (parseInt(data.analysis.ongoing)) {
                             zonalizer.mini.start();
                         }
                         else {
@@ -145,7 +145,7 @@ $( document ).ready(function () {
                                     +'<div class="progress-bar active" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%"></div>'
                                 +'</div>'
                             +'</div>');
-                            $('p', mini).text(this.zone);
+                            $('p', mini).text(this.fqdn);
                             var id = this.id;
                             $(mini).click(function () {
                                 var href = window.location.href.replace(/\?.*$/, '').replace(/#.*$/, '');
@@ -172,15 +172,15 @@ $( document ).ready(function () {
             update: function (mini, id, interval) {
                 $.ajax({
                     dataType: 'json',
-                    url: '/zonalizer/1/analyze',
+                    url: '/zonalizer/1/analysis/'+id,
                     data: {
-                        id: id
+                        results: 0
                     },
                     method: 'GET'
                 })
                 .done(function (data) {
-                    if (typeof data === 'object' && data.zone && data.progress > -1) {
-                        $('p', mini).text(data.zone);
+                    if (typeof data === 'object' && data.fqdn && data.progress > -1) {
+                        $('p', mini).text(data.fqdn);
                         $('.progress-bar', mini).attr('aria-valuenow', data.progress);
                         $('.progress-bar', mini).width(''+data.progress+'%');
                         if (data.progress < 100) {
@@ -261,10 +261,9 @@ $( document ).ready(function () {
 
                 $.ajax({
                     dataType: 'json',
-                    url: '/zonalizer/1/analyze',
+                    url: '/zonalizer/1/analysis/'+zonalizer.analyze._id,
                     data: {
-                        id: zonalizer.analyze._id,
-                        last_result: 5
+                        last_results: 5
                     },
                     method: 'GET'
                 })
@@ -274,7 +273,7 @@ $( document ).ready(function () {
                         $('.jumbotron .progress-bar').width(''+data.progress+'%');
                         $('.jumbotron .progress-bar span').text(''+data.progress+'% Complete');
 
-                        if (!(data.result && typeof data.result === 'object' && (data.result.isArray || data.result instanceof Array))) {
+                        if (!(data.results && typeof data.results === 'object' && (data.results.isArray || data.results instanceof Array))) {
                             return;
                         }
 
@@ -291,19 +290,15 @@ $( document ).ready(function () {
 
                             $.ajax({
                                 dataType: 'json',
-                                url: '/zonalizer/1/analyze',
-                                data: {
-                                    id: id,
-                                    result: 1
-                                },
+                                url: '/zonalizer/1/analysis/'+id,
                                 method: 'GET'
                             })
                             .done(function (data) {
-                                if (typeof data === 'object' && data.id && data.result && typeof data.result === 'object' && (data.result.isArray || data.result instanceof Array)) {
+                                if (typeof data === 'object' && data.id && data.results && typeof data.results === 'object' && (data.results.isArray || data.results instanceof Array)) {
                                     var href = window.location.href.replace(/\?.*$/, '').replace(/#.*$/, '');
                                     $('.table a').attr('href', '?'+data.id).text(href+'?'+data.id);
 
-                                    zonalizer.analyze.display(data.result);
+                                    zonalizer.analyze.display(data.results);
 
                                     $('.table, .jumbotron > div > div:eq(1)').fadeIn('fast');
                                     return;
@@ -318,14 +313,14 @@ $( document ).ready(function () {
                             });
                         }
                         else {
-                            data.result.sort(function (a, b) {
+                            data.results.sort(function (a, b) {
                                 return b.timestamp - a.timestamp;
                             });
 
                             $('.container > p').empty();
-                            for (var i = 0, m = 0; m < 10 && i < data.result.length; i++) {
-                                if (data.result[i].message) {
-                                    $('<span class="clearfix"></span>').text(data.result[i].message.replace(/,[^ ]/g, ', ').replace(/;[^ ]/g, '; ')).appendTo('.container > p');
+                            for (var i = 0, m = 0; m < 10 && i < data.results.length; i++) {
+                                if (data.results[i].message) {
+                                    $('<span class="clearfix"></span>').text(data.results[i].message.replace(/,[^ ]/g, ', ').replace(/;[^ ]/g, '; ')).appendTo('.container > p');
                                     m++;
                                 }
                             }
@@ -348,20 +343,16 @@ $( document ).ready(function () {
 
                 $.ajax({
                     dataType: 'json',
-                    url: '/zonalizer/1/analyze',
-                    data: {
-                        id: id,
-                        result: 1
-                    },
+                    url: '/zonalizer/1/analysis/'+id,
                     method: 'GET'
                 })
                 .done(function (data) {
-                    if (typeof data === 'object' && data.id && data.zone && data.progress > -1) {
+                    if (typeof data === 'object' && data.id && data.fqdn && data.progress > -1) {
                         zonalizer.api.ok();
 
-                        if (data.progress >= 100 && data.result && typeof data.result === 'object' && (data.result.isArray || data.result instanceof Array)) {
+                        if (data.progress >= 100 && data.results && typeof data.results === 'object' && (data.results.isArray || data.results instanceof Array)) {
                             $('.jumbotron h1').text('Analyze Results');
-                            $('.jumbotron p').text(data.zone);
+                            $('.jumbotron p').text(data.fqdn);
                             $('.container > p, .jumbotron .progress').fadeOut('fast').promise().done(function () {
                                 $('.table, .jumbotron > div > div:eq(1)').fadeIn('fast');
                             });
@@ -369,11 +360,11 @@ $( document ).ready(function () {
                             var href = window.location.href.replace(/\?.*$/, '').replace(/#.*$/, '');
                             $('.table a').attr('href', '?'+data.id).text(href+'?'+data.id);
 
-                            zonalizer.analyze.display(data.result);
+                            zonalizer.analyze.display(data.results);
                         }
                         else {
                             $('.jumbotron h1').text('Analysing ...');
-                            $('.jumbotron p').text(data.zone);
+                            $('.jumbotron p').text(data.fqdn);
                             $('.jumbotron .form-group, div.row, .alert').fadeOut('fast').promise().done(function () {
                                 $('.jumbotron .progress').fadeIn('fast');
                             });
@@ -401,9 +392,9 @@ $( document ).ready(function () {
                     $('.jumbotron .progress, .container > p').fadeIn('fast').promise().done(function () {
                         $.ajax({
                             dataType: 'json',
-                            url: '/zonalizer/1/analyze',
+                            url: '/zonalizer/1/analysis',
                             data: {
-                                zone: zone
+                                fqdn: zone
                             },
                             method: 'POST'
                         })
@@ -424,14 +415,14 @@ $( document ).ready(function () {
                     });
                 });
             },
-            display: function (result) {
-                result.sort(function (a, b) {
+            display: function (results) {
+                results.sort(function (a, b) {
                     return a.timestamp - b.timestamp;
                 });
 
                 $('tbody').empty();
                 var i = 1;
-                $(result).each(function (index) {
+                $(results).each(function (index) {
                     var tr = $('<tr></tr>');
                     if (this.level == 'DEBUG') {
                         tr.addClass('text-muted');
