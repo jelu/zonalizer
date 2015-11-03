@@ -124,16 +124,16 @@ $( document ).ready(function () {
 
                 $.ajax({
                     dataType: 'json',
-                    url: '/zonalizer/1/analysis',
+                    url: '/zonalizer/1/analysis?ongoing=1',
                     method: 'GET'
                 })
                 .done(function (data) {
-                    if (data.analyze && typeof data.analyze === 'object' && (data.analyze.isArray || data.analyze instanceof Array)) {
-                        data.analyze.sort(function (a, b) {
+                    if (data.analysis && typeof data.analysis === 'object' && (data.analysis.isArray || data.analysis instanceof Array)) {
+                        data.analysis.sort(function (a, b) {
                             return b.updated - a.updated;
                         });
 
-                        $(data.analyze).each(function (index) {
+                        $(data.analysis).each(function (index) {
                             if (zonalizer.mini._num > 9 || this.progress >= 100 || zonalizer.mini._id[this.id]) {
                                 return;
                             }
@@ -433,7 +433,7 @@ $( document ).ready(function () {
                     else if (this.level == 'WARNING') {
                         tr.addClass('warning');
                     }
-                    else if (this.level == 'ERROR') {
+                    else if (this.level == 'ERROR' || this.level == 'CRITICAL') {
                         tr.addClass('danger');
                     }
                     $('<th scope="row"></th>').text(i++).appendTo(tr);
