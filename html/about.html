@@ -40,6 +40,20 @@
                 <h1>About Zonalizer</h1>
             </div>
         </div>
+
+        <div class="panel panel-warning">
+            <div class="panel-heading">
+                <h3 class="panel-title">BETA</h3>
+            </div>
+            <div class="panel-body">
+                This WebApp is currently in beta so things might not work at all sometimes and current limitations are:
+                <ul>
+                    <li>A maximum of two tests are allowed to run simultaneously.</li>
+                    <li>There is also no tests done over IPv6 due to no outgoing IPv6 support at Amazon EC2 so don't blame me for that!</li>
+                </ul>
+            </div>
+        </div>
+
         <h1 id="zonalizer">Zonalizer</h1>
         <p>
             Zonalizer is a web application which uses a backend <a href="#api">API</a> to test DNS zones using <a href="#zonemaster">Zonemaster</a>.
@@ -63,119 +77,14 @@
         </p>
         <h1 id="api">API</h1>
         <p>
-            Zonalizer's backend API uses the framework <a href="https://github.com/jelu/lim">Lim</a> for easy exposure of functionality over REST.
+            Zonalizer's <a href="https://github.com/jelu/lim-plugin-zonalizer/blob/develop/README.md">backend API</a> uses the framework <a href="https://github.com/jelu/lim">Lim</a> for easy exposure of functionality over REST.
             The design of the API is centered around <a href="https://en.wikipedia.org/wiki/HATEOAS">HATEOAS</a> with addition of cursor-based pagination.
             Future versions will also have a worker module to distribute the work over backend nodes using <a href="https://www.rabbitmq.com/">RabbitMQ</a>.
         </p>
-
-        <div class="alert alert-warning">
-            <p class="lead">
-                Currently the API is very limited because its still in development.
-            </p>
-        </div>
-
-        <h3>GET /zonalizer/1/version</h3>
-        <p>
-            Get the version of Zonalizer's backend API module.
-        </p>
-        <div class="panel panel-default">
-            <div class="panel-body">
-<pre>
-{
-    "version" : "0.10"
-}
-</pre>
-            </div>
-        </div>
-        <h3>GET /zonalizer/1/status</h3>
-        <p>
-            Get API statistics and status about running and completed tests.
-        </p>
-        <div class="panel panel-default">
-            <div class="panel-body">
-<pre>
-{
-   "api" : {
-      "requests" : 501,
-      "errors" : 0
-   },
-   "tests" : {
-      "ongoing" : 0,
-      "completed" : 5,
-      "failed" : 0
-   }
-}
-</pre>
-            </div>
-        </div>
-        <h3>POST /zonalizer/1/analyze?zone=:zone</h3>
-        <p>
-            Start a new analysis of a zone and return an ID which can be used to retrieve the status and results.
-        </p>
-        <div class="panel panel-default">
-            <div class="panel-body">
-<pre>
-{
-   "id" : "pd6QwWWwTzao-I8SrOMObQ"
-}
-</pre>
-            </div>
-        </div>
-        <h3>GET /zonalizer/1/analyze/:id</h3>
-        <p>
-            Get the status of an analysis.
-        </p>
-        <div class="panel panel-default">
-            <div class="panel-body">
-<pre>
-{
-   "updated" : 1445849210,
-   "created" : 1445849194,
-   "progress" : 70,
-   "zone" : "example.com",
-   "id" : "pd6QwWWwTzao-I8SrOMObQ",
-   "status" : "analyzing"
-}
-</pre>
-            </div>
-        </div>
-        <h3>GET /zonalizer/1/analyze/:id?result=1</h3>
-        <p>
-            Get the results of an analysis.
-        </p>
-        <div class="panel panel-default">
-            <div class="panel-body">
-<pre>
-{
-   "zone" : "example.com",
-   "id" : "pd6QwWWwTzao-I8SrOMObQ",
-   "updated" : 1445846105,
-   "progress" : 100,
-   "created" : 1445846091,
-   "status" : "analyzing",
-   "result" : [
-      ...
-      {
-         "args" : {
-            "required_refresh" : 14400,
-            "refresh" : 7200
-         },
-         "level" : "NOTICE",
-         "timestamp" : 15.4495520591736,
-         "module" : "ZONE",
-         "_id" : 59,
-         "message" : "SOA 'refresh' value (7200) is less than the recommended one (14400).",
-         "tag" : "REFRESH_MINIMUM_VALUE_LOWER"
-      },
-      ...
-   ]
-}
-</pre>
-            </div>
-        </div>
         <footer class="footer">
             <p>
                 Fork me on GitHub; <a href="https://github.com/jelu/zonalizer">Zonalizer</a>, <a href="https://github.com/jelu/lim-plugin-zonalizer">Lim::Plugin::Zonalizer</a>.
+                Follow <a href="https://twitter.com/zonalizer">@zonalizer</a>.
                 Powered by <a href="https://github.com/dotse/zonemaster-engine">Zonemaster</a>, <a href="https://github.com/jelu/lim">Lim</a>, <a href="https://jquery.com">jQuery</a>, <a href="https://getbootstrap.com">Bootstrap</a>, <a href="https://bootswatch.com/darkly">Bootswatch's Darkly</a>.
             </p>
         </footer>

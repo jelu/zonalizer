@@ -239,7 +239,7 @@
                 zonalizer.analyze.stop();
                 $('.jumbotron h1').text('Analyze Your Zone Now');
                 $('.jumbotron p').text('Don\'t let broken zones stop your users from surfing, analyze and fix them today!');
-                $('.jumbotron .progress, .table, .jumbotron > div > div:eq(1), .container > p').fadeOut('fast').promise().done(function () {
+                $('.jumbotron .progress, .table, .jumbotron > div > div:eq(1) > button, .container > p').fadeOut('fast').promise().done(function () {
                     $('.jumbotron .form-group, div.row, .alert').fadeIn('fast').promise().done(function () {
                         zonalizer.status.start();
                     });
@@ -249,7 +249,7 @@
                 zonalizer.analyze.stop();
                 $('.jumbotron h1').text('Analyze Your Zone Now');
                 $('.jumbotron p').text('Don\'t let broken zones stop your users from surfing, analyze and fix them today!');
-                $('.table, .jumbotron > div > div:eq(1)').fadeOut('fast').promise().done(function () {
+                $('.table, .jumbotron > div > div:eq(1) > button').fadeOut('fast').promise().done(function () {
                     $('.jumbotron .form-group, div.row').fadeIn('fast').promise().done(function () {
                         zonalizer.status.start();
                     });
@@ -301,7 +301,7 @@
 
                                     zonalizer.analyze.display(data.results);
 
-                                    $('.table, .jumbotron > div > div:eq(1)').fadeIn('fast');
+                                    $('.table, .jumbotron > div > div:eq(1) > button').fadeIn('fast');
                                     return;
                                 }
 
@@ -355,7 +355,7 @@
                             $('.jumbotron h1').text('Analyze Results');
                             $('.jumbotron p').text(data.fqdn);
                             $('.container > p, .jumbotron .progress').fadeOut('fast').promise().done(function () {
-                                $('.table, .jumbotron > div > div:eq(1)').fadeIn('fast');
+                                $('.table, .jumbotron > div > div:eq(1) > button').fadeIn('fast');
                             });
 
                             var href = window.location.href.replace(/\?.*$/, '').replace(/#.*$/, '');
@@ -446,6 +446,147 @@
                 });
             }
         },
+        browse: {
+            _previous: null,
+            _next: null,
+            fail: function () {
+                $('table').hide();
+                $('.pagination').parent().hide();
+                $('.alert').show();
+            },
+            init: function () {
+                $('table').show();
+                $('.pagination').parent().show();
+                $('.pagination li:eq(0)').click(function () {
+                    if (zonalizer.browse._previous) {
+                        zonalizer.browse.load(zonalizer.browse._previous);
+                    }
+                    event.preventDefault();
+                    return false;
+                });
+                $('.pagination li:eq(1)').click(function () {
+                    if (zonalizer.browse._next) {
+                        zonalizer.browse.load(zonalizer.browse._next);
+                    }
+                    event.preventDefault();
+                    return false;
+                });
+            },
+            load: function (url) {
+                $('caption').text('Loading results ...');
+
+                if (!url) {
+                    url = '/zonalizer/1/analysis?sort=created&direction=descending';
+                }
+
+                $.ajax({
+                    dataType: 'json',
+                    url: url,
+                    method: 'GET'
+                })
+                .done(function (data) {
+                    $('caption').html('&nbsp;');
+
+                    if (data.analysis && typeof data.analysis === 'object' && (data.analysis.isArray || data.analysis instanceof Array)) {
+                        for (var i = 0; i < data.analysis.length; i++) {
+                            if (typeof data.analysis[i] === 'object' && typeof data.analysis[i].summary === 'object') {
+                                continue;
+                            }
+
+                            data.analysis = null;
+                            break;
+                        }
+
+                        if (data.analysis) {
+                            zonalizer.browse.display(data.analysis);
+
+                            $('tbody tr').click(function () {
+                                window.location.href = '/?'+$(this).data('zonalizer-id');
+                            });
+
+                            if (data.paging && typeof data.paging === 'object' && data.paging.previous) {
+                                zonalizer.browse._previous = data.paging.previous;
+                                $('.pagination li:eq(0)').removeClass('disabled');
+                            }
+                            else {
+                                zonalizer.browse._previous = null;
+                                $('.pagination li:eq(0)').addClass('disabled');
+                            }
+
+                            if (data.paging && typeof data.paging === 'object' && data.paging.next) {
+                                zonalizer.browse._next = data.paging.next;
+                                $('.pagination li:eq(1)').removeClass('disabled');
+                            }
+                            else {
+                                zonalizer.browse._next = null;
+                                $('.pagination li:eq(1)').addClass('disabled');
+                            }
+
+                            return;
+                        }
+                    }
+
+                    zonalizer.browse.fail();
+                });
+            },
+            display: function (analysis) {
+                $('tbody').empty();
+                var i = 1;
+                $(analysis).each(function (index) {
+                    var tr = $('<tr style="cursor: pointer; cursor: hand"></tr>');
+                    tr.data('zonalizer-id', this.id);
+                    $('<td></td>').text(this.fqdn).appendTo(tr);
+
+                    var total = this.summary.notice
+                        + this.summary.warning
+                        + this.summary.error
+                        + this.summary.critical;
+                    var warning = Math.floor((this.summary.warning*100)/total);
+                    var danger = Math.floor(((this.summary.error+this.summary.critical)*100)/total);
+
+                    var health = $('<div class="progress"></div>');
+                    if (total) {
+                        $('<div class="progress-bar progress-bar-info"></div>')
+                            .css('width', (100-warning-danger)+'%')
+                            .appendTo(health);
+                        $('<div class="progress-bar progress-bar-warning"></div>')
+                            .css('width', warning+'%')
+                            .appendTo(health);
+                        $('<div class="progress-bar progress-bar-danger"></div>')
+                            .css('width', danger+'%')
+                            .appendTo(health);
+                    }
+                    else {
+                        $('<div class="progress-bar progress-bar-success" style="width: 100%"></div>')
+                            .appendTo(health);
+                    }
+                    var td = $('<td></td>');
+                    health.appendTo(td);
+                    td.appendTo(tr);
+
+                    $('<td></td>').text(this.status).appendTo(tr);
+
+                    var seconds = Math.floor(((new Date()).getTime()/1000) - this.updated);
+                    if (seconds < 60) {
+                        $('<td></td>').text('Now').appendTo(tr);
+                    }
+                    else if (seconds < (60*60)) {
+                        $('<td></td>').text(Math.floor(seconds/60)+'m').appendTo(tr);
+                    }
+                    else if (seconds < (60*60*24)) {
+                        $('<td></td>').text(Math.floor(seconds/(60*60))+'h').appendTo(tr);
+                    }
+                    else if (seconds < (60*60*24*7)) {
+                        $('<td></td>').text(Math.floor(seconds/(60*60*24))+'d').appendTo(tr);
+                    }
+                    else {
+                        $('<td></td>').text(Math.floor(seconds/(60*60*24*7))+'w').appendTo(tr);
+                    }
+
+                    tr.appendTo($('tbody'));
+                });
+            }
+        },
         page: {
             main: function () {
                 $(document).on({
@@ -457,13 +598,13 @@
                     }
                 });
 
-                $('.jumbotron .progress, .alert, .table, .jumbotron > div > div:eq(1)').hide();
+                $('.jumbotron .progress, .alert, .table, .jumbotron > div > div:eq(1) > button').hide();
                 $('.alert button').click(function () {
                     $('.alert').fadeOut('fast');
                 });
 
                 $('form button').prop('disabled', true);
-                $('input:eq(0)').on('input propertychange paste', function() {
+                var f = function() {
                     var zone = $('input:eq(0)').val();
 
                     if (zone && zone.match(/^[a-zA-Z0-9\.-]+$/)) {
@@ -472,7 +613,10 @@
                     else {
                         $('form button').prop('disabled', true);
                     }
-                });
+                };
+                $('input:eq(0)').on('input propertychange paste', f);
+                f();
+                $('input:eq(0)').focus();
                 $('form').submit(function (event) {
                     var zone = $('input:eq(0)').val();
 
@@ -501,6 +645,9 @@
                 }
             },
             browse: function () {
+                $('.alert').hide();
+                zonalizer.browse.init();
+                zonalizer.browse.load();
             }
         }
     };

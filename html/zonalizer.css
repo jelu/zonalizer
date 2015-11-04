@@ -15,6 +15,10 @@ footer {
     border: 0;
     border-radius: 0;
 }
+table .progress {
+    margin-bottom: 0;
+    height: 21px;
+}
 @media screen and (max-width: 767px) {
   .container .jumbotron,
   .container-fluid .jumbotron {

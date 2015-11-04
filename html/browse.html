@@ -49,26 +49,40 @@
     <div class="container">
 
         <div class="page-header">
+            <span class="text-warning lead" style="float: right">BETA</span>
             <h1>Browse Results</h1>
         </div>
 
-        <table class="table table-striped">
+        <div class="alert alert-danger lead" style="display: none">
+            <button type="button" class="close">×</button>
+            <strong>Oh snap!</strong> Something went very wrong... but I don't know what. It's a beta after all.
+        </div>
+
+        <table class="table table-striped" style="display: none">
+            <caption></caption>
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Module</th>
-                    <th>Level</th>
-                    <th>Tag</th>
-                    <th>Message</th>
+                    <th>FQDN</th>
+                    <th>Health</th>
+                    <th>Status</th>
+                    <th>When</th>
                 </tr>
             </thead>
             <tbody>
             </tbody>
         </table>
 
+        <div class="text-right" style="display: none">
+            <ul class="pagination">
+                <li class="disabled"><a href="#">«</a></li>
+                <li class="disabled"><a href="#">»</a></li>
+            </ul>
+        </div>
+
         <footer class="footer">
             <p>
                 Fork me on GitHub; <a href="https://github.com/jelu/zonalizer">Zonalizer</a>, <a href="https://github.com/jelu/lim-plugin-zonalizer">Lim::Plugin::Zonalizer</a>.
+                Follow <a href="https://twitter.com/zonalizer">@zonalizer</a>.
                 Powered by <a href="https://github.com/dotse/zonemaster-engine">Zonemaster</a>, <a href="https://github.com/jelu/lim">Lim</a>, <a href="https://jquery.com">jQuery</a>, <a href="https://getbootstrap.com">Bootstrap</a>, <a href="https://bootswatch.com/darkly">Bootswatch's Darkly</a>.
             </p>
         </footer>
@@ -78,7 +92,7 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
     <script src="ie10-viewport-bug-workaround.js?1"></script>
     <script src="jquery-visibility.min.js?1"></script>
-    <script src="zonalizer.min.js?1"></script>
+    <script src="zonalizer.js?1"></script>
     <script>
         $( document ).ready(function () {
             $(document).zonalizer('browse');
