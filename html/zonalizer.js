@@ -1,4 +1,5 @@
-$( document ).ready(function () {
+(function ( $ ) {
+
     var zonalizer = {
         api: {
             ok: function () {
@@ -444,58 +445,68 @@ $( document ).ready(function () {
                     tr.appendTo($('tbody'));
                 });
             }
+        },
+        page: {
+            main: function () {
+                $(document).on({
+                    'show': function() {
+                        zonalizer.status.resume();
+                    },
+                    'hide': function() {
+                        zonalizer.status.pause();
+                    }
+                });
+
+                $('.jumbotron .progress, .alert, .table, .jumbotron > div > div:eq(1)').hide();
+                $('.alert button').click(function () {
+                    $('.alert').fadeOut('fast');
+                });
+
+                $('form button').prop('disabled', true);
+                $('input:eq(0)').on('input propertychange paste', function() {
+                    var zone = $('input:eq(0)').val();
+
+                    if (zone && zone.match(/^[a-zA-Z0-9\.-]+$/)) {
+                        $('form button').prop('disabled', false);
+                    }
+                    else {
+                        $('form button').prop('disabled', true);
+                    }
+                });
+                $('form').submit(function (event) {
+                    var zone = $('input:eq(0)').val();
+
+                    if (zone && zone.match(/^[a-zA-Z0-9\.-]+$/)) {
+                        zonalizer.mini.stop();
+                        zonalizer.status.stop();
+                        zonalizer.analyze.zone(zone);
+                    }
+
+                    event.preventDefault();
+                    return false;
+                });
+                $('.jumbotron > div > div:eq(1) > button').click(function () {
+                    if (window.location.search) {
+                        window.location.search = '';
+                    }
+                    $('input:eq(0)').val('');
+                    zonalizer.analyze.done();
+                });
+
+                if (window.location.search.match(/^\?[a-zA-Z0-9_=\-]+$/)) {
+                    zonalizer.analyze.load(window.location.search.substr(1));
+                }
+                else {
+                    zonalizer.status.start();
+                }
+            },
+            browse: function () {
+            }
         }
     };
 
-    $(document).on({
-        'show': function() {
-            zonalizer.status.resume();
-        },
-        'hide': function() {
-            zonalizer.status.pause();
-        }
-    });
-
-    $('.jumbotron .progress, .alert, .table, .jumbotron > div > div:eq(1)').hide();
-    $('.alert button').click(function () {
-        $('.alert').fadeOut('fast');
-    });
-
-    $('form button').prop('disabled', true);
-    $('input:eq(0)').on('input propertychange paste', function() {
-        var zone = $('input:eq(0)').val();
-
-        if (zone && zone.match(/^[a-zA-Z0-9\.-]+$/)) {
-            $('form button').prop('disabled', false);
-        }
-        else {
-            $('form button').prop('disabled', true);
-        }
-    });
-    $('form').submit(function (event) {
-        var zone = $('input:eq(0)').val();
-
-        if (zone && zone.match(/^[a-zA-Z0-9\.-]+$/)) {
-            zonalizer.mini.stop();
-            zonalizer.status.stop();
-            zonalizer.analyze.zone(zone);
-        }
-
-        event.preventDefault();
-        return false;
-    });
-    $('.jumbotron > div > div:eq(1) > button').click(function () {
-        if (window.location.search) {
-            window.location.search = '';
-        }
-        $('input:eq(0)').val('');
-        zonalizer.analyze.done();
-    });
-
-    if (window.location.search.match(/^\?[a-zA-Z0-9_=\-]+$/)) {
-        zonalizer.analyze.load(window.location.search.substr(1));
-    }
-    else {
-        zonalizer.status.start();
-    }
-});
+    $.fn.zonalizer = function (page) {
+        zonalizer.page[page]();
+        return this;
+    };
+}( jQuery ));
