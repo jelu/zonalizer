@@ -179,7 +179,7 @@ $diffroot_w = AnyEvent->timer( after => 1, interval => 600, cb => sub {
     eval {
         $tweets = $twitter->user_timeline({
             screen_name => 'diffroot',
-            count => 200,
+            count => 50,
             trim_user => 1,
             exclude_replies => 1,
             $state{diffroot_id} ? ( since_id => $state{diffroot_id} ) : (),
