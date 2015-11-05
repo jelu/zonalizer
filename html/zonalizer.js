@@ -441,7 +441,7 @@
                     $('<td></td>').text(this.module).appendTo(tr);
                     $('<td></td>').text(this.level).appendTo(tr);
                     $('<td></td>').text(this.tag).appendTo(tr);
-                    $('<td style="text-align: left;"></td>').text(this.message ? this.message.replace(/,[^ ]/g, ', ').replace(/;[^ ]/g, '; ') : '...').appendTo(tr);
+                    $('<td style="text-align: left;"></td>').text(this.message ? this.message.replace(/,(?! )/g, ', ').replace(/;(?! )/g, '; ') : '...').appendTo(tr);
                     tr.appendTo($('tbody'));
                 });
             }
