@@ -121,7 +121,6 @@ $queue_w = AnyEvent->timer( after => 2, interval => 10, cb => sub {
         return;
     }
     unless ( $state{queue} ) {
-        $cv->send;
         return;
     }
 
@@ -266,17 +265,27 @@ $mention_w = AnyEvent->timer( after => 1, interval => 60, cb => sub {
             $state{since_id} = $tweet->{id};
         }
 
-        if ( $tweet->{text} =~ /^\@zonalizer\s+analyze\s+\S/o
-            and ref($tweet->{entities}->{urls}) eq 'ARRAY'
-            and scalar @{$tweet->{entities}->{urls}}
-            and ref($tweet->{entities}->{urls}->[0]) eq 'HASH'
-            and $tweet->{entities}->{urls}->[0]->{display_url} =~ /^[a-z0-9\.-]+$/o )
-        {
-            $dn{ $tweet->{user}->{screen_name} .':'. $tweet->{entities}->{urls}->[0]->{display_url} } ||= {
-                screen_name => $tweet->{user}->{screen_name},
-                dn => $tweet->{entities}->{urls}->[0]->{display_url},
-                id => $tweet->{id}
-            };
+        if ( $tweet->{text} =~ /^\@zonalizer\s+analyze\s+(\S+)/o ) {
+            my $dn = $1;
+
+            if ( $dn =~ /^([a-z0-9\.-]+)$/o ) {
+                $dn{ $tweet->{user}->{screen_name} .':'. $1 } ||= {
+                    screen_name => $tweet->{user}->{screen_name},
+                    dn => $1,
+                    id => $tweet->{id}
+                };
+            }
+            elsif ( ref($tweet->{entities}->{urls}) eq 'ARRAY'
+                and scalar @{$tweet->{entities}->{urls}}
+                and ref($tweet->{entities}->{urls}->[0]) eq 'HASH'
+                and $tweet->{entities}->{urls}->[0]->{display_url} =~ /^[a-z0-9\.-]+$/o )
+            {
+                $dn{ $tweet->{user}->{screen_name} .':'. $tweet->{entities}->{urls}->[0]->{display_url} } ||= {
+                    screen_name => $tweet->{user}->{screen_name},
+                    dn => $tweet->{entities}->{urls}->[0]->{display_url},
+                    id => $tweet->{id}
+                };
+            }
         }
     }
 
