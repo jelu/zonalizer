@@ -46,6 +46,12 @@
         </div>
     </noscript>
 
+    <div id="jquery-alert" class="container" style="display: none">
+        <div class="alert alert-dismissible alert-danger">
+            <p class="lead text-center"><strong>Please enable jQuery!</strong></p>
+        </div>
+    </div>
+
     <div class="container">
 
         <div class="page-header">
@@ -92,11 +98,17 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
     <script src="ie10-viewport-bug-workaround.js?1"></script>
     <script src="jquery-visibility.min.js?1"></script>
-    <script src="zonalizer.js?1"></script>
+    <script src="zonalizer.min.js?1"></script>
     <script>
-        $( document ).ready(function () {
-            $(document).zonalizer('browse');
-        });
+        if ( typeof $ === 'function' ) {
+            $( document ).ready(function () {
+                $('#jquery-alert').remove();
+                $(document).zonalizer('browse');
+            });
+        }
+        else {
+            document.getElementById('jquery-alert').style.display = 'block';
+        }
     </script>
 
 </body>

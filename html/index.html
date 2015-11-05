@@ -52,6 +52,12 @@
         </div>
     </noscript>
 
+    <div id="jquery-alert" class="container" style="display: none">
+        <div class="alert alert-dismissible alert-danger">
+            <p class="lead text-center"><strong>Please enable jQuery!</strong></p>
+        </div>
+    </div>
+
     <div class="container">
         <div class="page-header">
 
@@ -144,9 +150,15 @@
     <script src="jquery-visibility.min.js?1"></script>
     <script src="zonalizer.min.js?1"></script>
     <script>
-        $( document ).ready(function () {
-            $(document).zonalizer('main');
-        });
+        if ( typeof $ === 'function' ) {
+            $( document ).ready(function () {
+                $('#jquery-alert').remove();
+                $(document).zonalizer('main');
+            });
+        }
+        else {
+            document.getElementById('jquery-alert').style.display = 'block';
+        }
     </script>
 
 </body>

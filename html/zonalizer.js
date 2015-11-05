@@ -140,7 +140,7 @@
                             }
 
                             var mini = $(
-                            '<div>'
+                            '<div style="cursor: pointer; cursor: hand">'
                                 +'<p></p>'
                                 +'<div class="progress" style="height: 5px;">'
                                     +'<div class="progress-bar active" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%"></div>'
