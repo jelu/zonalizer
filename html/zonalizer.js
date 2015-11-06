@@ -449,6 +449,12 @@
         browse: {
             _previous: null,
             _next: null,
+            _sort: null,
+            _direction: null,
+            _th: {
+                fqdn: { n: 0, d: 'ascending' },
+                created: { n: 3, d: 'descending' }
+            },
             fail: function () {
                 $('table').hide();
                 $('.pagination').parent().hide();
@@ -457,26 +463,66 @@
             init: function () {
                 $('table').show();
                 $('.pagination').parent().show();
-                $('.pagination li:eq(0)').click(function () {
+                $('.pagination li:eq(0)').click(function (event) {
+                    zonalizer.browse.load();
+                    event.preventDefault();
+                    return false;
+                });
+                $('.pagination li:eq(1)').click(function (event) {
                     if (zonalizer.browse._previous) {
                         zonalizer.browse.load(zonalizer.browse._previous);
                     }
                     event.preventDefault();
                     return false;
                 });
-                $('.pagination li:eq(1)').click(function () {
+                $('.pagination li:eq(2)').click(function (event) {
                     if (zonalizer.browse._next) {
                         zonalizer.browse.load(zonalizer.browse._next);
                     }
                     event.preventDefault();
                     return false;
                 });
+                zonalizer.browse.sort('created');
+                $('thead th:eq(0)').click(function (event) {
+                    zonalizer.browse.sort('fqdn');
+                    zonalizer.browse.load();
+                    event.preventDefault();
+                    return false;
+                });
+                $('thead th:eq(3)').click(function (event) {
+                    zonalizer.browse.sort('created');
+                    zonalizer.browse.load();
+                    event.preventDefault();
+                    return false;
+                });
+            },
+            sort: function (what) {
+                if ( (typeof zonalizer.browse._th[what]) !== 'object' ) {
+                    return;
+                }
+
+                if ( zonalizer.browse._sort == what ) {
+                    zonalizer.browse._direction = zonalizer.browse._direction == 'ascending' ? 'descending' : 'ascending';
+                }
+                else {
+                    zonalizer.browse._sort = what;
+                    zonalizer.browse._direction = zonalizer.browse._th[what].d;
+                }
+
+                $('thead th span')
+                .removeClass('glyphicon-sort-by-attributes')
+                .removeClass('glyphicon-sort-by-attributes-alt')
+                .addClass('text-muted')
+                .addClass('glyphicon-sort');
+
+                $('thead th:eq('+zonalizer.browse._th[what].n+') span')
+                .removeClass('text-muted')
+                .removeClass('glyphicon-sort')
+                .addClass( zonalizer.browse._direction == 'ascending' ? 'glyphicon-sort-by-attributes' : 'glyphicon-sort-by-attributes-alt' );
             },
             load: function (url) {
-                $('caption').text('Loading results ...');
-
                 if (!url) {
-                    url = '/zonalizer/1/analysis?sort=created&direction=descending';
+                    url = '/zonalizer/1/analysis?sort='+zonalizer.browse._sort+'&direction='+zonalizer.browse._direction;
                 }
 
                 $.ajax({
@@ -485,8 +531,6 @@
                     method: 'GET'
                 })
                 .done(function (data) {
-                    $('caption').html('&nbsp;');
-
                     if (data.analysis && typeof data.analysis === 'object' && (data.analysis.isArray || data.analysis instanceof Array)) {
                         for (var i = 0; i < data.analysis.length; i++) {
                             if (typeof data.analysis[i] === 'object' && typeof data.analysis[i].summary === 'object') {
@@ -507,19 +551,21 @@
                             if (data.paging && typeof data.paging === 'object' && data.paging.previous) {
                                 zonalizer.browse._previous = data.paging.previous;
                                 $('.pagination li:eq(0)').removeClass('disabled');
+                                $('.pagination li:eq(1)').removeClass('disabled');
                             }
                             else {
                                 zonalizer.browse._previous = null;
                                 $('.pagination li:eq(0)').addClass('disabled');
+                                $('.pagination li:eq(1)').addClass('disabled');
                             }
 
                             if (data.paging && typeof data.paging === 'object' && data.paging.next) {
                                 zonalizer.browse._next = data.paging.next;
-                                $('.pagination li:eq(1)').removeClass('disabled');
+                                $('.pagination li:eq(2)').removeClass('disabled');
                             }
                             else {
                                 zonalizer.browse._next = null;
-                                $('.pagination li:eq(1)').addClass('disabled');
+                                $('.pagination li:eq(2)').addClass('disabled');
                             }
 
                             return;

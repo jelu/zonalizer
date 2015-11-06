@@ -64,26 +64,26 @@
             <strong>Oh snap!</strong> Something went very wrong... but I don't know what. It's a beta after all.
         </div>
 
+        <div class="text-right" style="display: none">
+            <ul class="pagination">
+                <li class="disabled"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></li>
+                <li class="disabled"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></li>
+                <li class="disabled"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></li>
+            </ul>
+        </div>
+
         <table class="table table-striped" style="display: none">
-            <caption></caption>
             <thead>
                 <tr>
-                    <th>FQDN</th>
+                    <th style="cursor: pointer; cursor: hand">FQDN <span class="text-muted glyphicon glyphicon-sort" aria-hidden="true"></span></th>
                     <th>Health</th>
                     <th>Status</th>
-                    <th>When</th>
+                    <th style="cursor: pointer; cursor: hand">When <span class="text-muted glyphicon glyphicon-sort" aria-hidden="true"></span></th>
                 </tr>
             </thead>
             <tbody>
             </tbody>
         </table>
-
-        <div class="text-right" style="display: none">
-            <ul class="pagination">
-                <li class="disabled"><a href="#">«</a></li>
-                <li class="disabled"><a href="#">»</a></li>
-            </ul>
-        </div>
 
         <footer class="footer">
             <p>
@@ -96,9 +96,9 @@
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
-    <script src="ie10-viewport-bug-workaround.js?1"></script>
-    <script src="jquery-visibility.min.js?1"></script>
-    <script src="zonalizer.min.js?1"></script>
+    <script src="ie10-viewport-bug-workaround.js?2"></script>
+    <script src="jquery-visibility.min.js?2"></script>
+    <script src="zonalizer.min.js?2"></script>
     <script>
         if ( typeof $ === 'function' ) {
             $( document ).ready(function () {
