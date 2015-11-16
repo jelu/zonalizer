@@ -592,15 +592,21 @@
 
                     var health = $('<div class="progress"></div>');
                     if (total) {
-                        $('<div class="progress-bar progress-bar-info"></div>')
-                            .css('width', (100-warning-danger)+'%')
-                            .appendTo(health);
-                        $('<div class="progress-bar progress-bar-warning"></div>')
-                            .css('width', warning+'%')
-                            .appendTo(health);
-                        $('<div class="progress-bar progress-bar-danger"></div>')
-                            .css('width', danger+'%')
-                            .appendTo(health);
+                        if ((100-warning-danger) > 0) {
+                            $('<div class="progress-bar progress-bar-info"></div>')
+                                .css('width', (100-warning-danger)+'%')
+                                .appendTo(health);
+                        }
+                        if (warning > 0) {
+                            $('<div class="progress-bar progress-bar-warning"></div>')
+                                .css('width', warning+'%')
+                                .appendTo(health);
+                        }
+                        if (danger > 0) {
+                            $('<div class="progress-bar progress-bar-danger"></div>')
+                                .css('width', danger+'%')
+                                .appendTo(health);
+                        }
                     }
                     else {
                         $('<div class="progress-bar progress-bar-success" style="width: 100%"></div>')
