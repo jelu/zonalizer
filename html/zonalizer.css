@@ -25,9 +25,12 @@ table .progress {
     cursor: hand;
 }
 @media screen and (max-width: 767px) {
-  .container .jumbotron,
-  .container-fluid .jumbotron {
-    padding-left: 15px;
-    padding-right: 15px;
-  }
+    .container .jumbotron,
+    .container-fluid .jumbotron {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    .browse tr th:nth-child(3), .browse tr td:nth-child(3) {
+        display: none;
+    }
 }

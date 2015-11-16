@@ -610,7 +610,20 @@
                     health.appendTo(td);
                     td.appendTo(tr);
 
-                    $('<td></td>').text(this.status).appendTo(tr);
+                    var status = 'OK';
+                    if (this.summary.critical) {
+                        status = 'CRITICAL';
+                    }
+                    else if (this.summary.error) {
+                        status = 'Error'
+                    }
+                    else if (this.summary.warning) {
+                        status = 'Warning'
+                    }
+                    else if (this.summary.notice) {
+                        status = 'Notice'
+                    }
+                    $('<td></td>').text(status).appendTo(tr);
 
                     var seconds = Math.floor(((new Date()).getTime()/1000) - this.updated);
                     if (seconds < 60) {
@@ -662,7 +675,6 @@
                 };
                 $('input:eq(0)').on('input propertychange paste', f);
                 f();
-                $('input:eq(0)').focus();
                 $('form').submit(function (event) {
                     var zone = $('input:eq(0)').val();
 
