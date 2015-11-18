@@ -221,7 +221,7 @@
             _id: null,
             _interval: null,
             _timer: 1500,
-            _lang: null,
+            _lang: 'en_US',
             _show: {
                 all: 1,
                 info: 0,
@@ -308,6 +308,7 @@
                                     var href = window.location.href.replace(/\?.*$/, '').replace(/#.*$/, '');
                                     $('.table caption > a').attr('href', '?'+data.id).text(href+'?'+data.id);
 
+                                    zonalizer.analyze._id = id;
                                     zonalizer.analyze.display(data.results);
 
                                     $('.table, .nav-pills, .jumbotron > div > div:eq(1) > button').fadeIn('fast');
@@ -476,7 +477,7 @@
                 });
             },
             switchLang: function (lang) {
-                if (!zonalizer.analyze._id || (zonalizer.analyze._lang && lang == zonalizer.analyze._lang)) {
+                if (!zonalizer.analyze._id || lang == zonalizer.analyze._lang) {
                     return;
                 }
 
