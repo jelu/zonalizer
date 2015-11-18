@@ -221,6 +221,15 @@
             _id: null,
             _interval: null,
             _timer: 1500,
+            _lang: null,
+            _show: {
+                all: 1,
+                info: 0,
+                notice: 0,
+                warning: 0,
+                error: 0,
+                critical: 0
+            },
             start: function () {
                 if (zonalizer.analyze._id && !zonalizer.analyze._interval) {
                     zonalizer.analyze._interval = window.setInterval(function () {
@@ -239,7 +248,7 @@
                 zonalizer.analyze.stop();
                 $('.jumbotron h1').text('Analyze Your Zone Now');
                 $('.jumbotron p').text('Don\'t let broken zones stop your users from surfing, analyze and fix them today!');
-                $('.jumbotron .progress, .table, .jumbotron > div > div:eq(1) > button, .container > p').fadeOut('fast').promise().done(function () {
+                $('.jumbotron .progress, .table, .nav-pills, .jumbotron > div > div:eq(1) > button, .container > p').fadeOut('fast').promise().done(function () {
                     $('.jumbotron .form-group, div.row, .alert').fadeIn('fast').promise().done(function () {
                         zonalizer.status.start();
                     });
@@ -249,7 +258,7 @@
                 zonalizer.analyze.stop();
                 $('.jumbotron h1').text('Analyze Your Zone Now');
                 $('.jumbotron p').text('Don\'t let broken zones stop your users from surfing, analyze and fix them today!');
-                $('.table, .jumbotron > div > div:eq(1) > button').fadeOut('fast').promise().done(function () {
+                $('.table, .nav-pills, .jumbotron > div > div:eq(1) > button').fadeOut('fast').promise().done(function () {
                     $('.jumbotron .form-group, div.row').fadeIn('fast').promise().done(function () {
                         zonalizer.status.start();
                     });
@@ -297,11 +306,11 @@
                             .done(function (data) {
                                 if (typeof data === 'object' && data.id && data.results && typeof data.results === 'object' && (data.results.isArray || data.results instanceof Array)) {
                                     var href = window.location.href.replace(/\?.*$/, '').replace(/#.*$/, '');
-                                    $('.table a').attr('href', '?'+data.id).text(href+'?'+data.id);
+                                    $('.table caption > a').attr('href', '?'+data.id).text(href+'?'+data.id);
 
                                     zonalizer.analyze.display(data.results);
 
-                                    $('.table, .jumbotron > div > div:eq(1) > button').fadeIn('fast');
+                                    $('.table, .nav-pills, .jumbotron > div > div:eq(1) > button').fadeIn('fast');
                                     return;
                                 }
 
@@ -342,6 +351,7 @@
                 $('.jumbotron p').text('');
                 $('.jumbotron .form-group, div.row, .alert').hide();
 
+                zonalizer.analyze._id = id;
                 $.ajax({
                     dataType: 'json',
                     url: '/zonalizer/1/analysis/'+id,
@@ -355,11 +365,11 @@
                             $('.jumbotron h1').text('Analyze Results');
                             $('.jumbotron p').text(data.fqdn);
                             $('.container > p, .jumbotron .progress').fadeOut('fast').promise().done(function () {
-                                $('.table, .jumbotron > div > div:eq(1) > button').fadeIn('fast');
+                                $('.table, .nav-pills, .jumbotron > div > div:eq(1) > button').fadeIn('fast');
                             });
 
                             var href = window.location.href.replace(/\?.*$/, '').replace(/#.*$/, '');
-                            $('.table a').attr('href', '?'+data.id).text(href+'?'+data.id);
+                            $('.table caption > a').attr('href', '?'+data.id).text(href+'?'+data.id);
 
                             zonalizer.analyze.display(data.results);
                         }
@@ -422,7 +432,7 @@
                 });
 
                 $('tbody').empty();
-                var i = 1;
+                var i = 1, info = 0, notice = 0, warning = 0, error = 0, critical = 0;
                 $(results).each(function (index) {
                     var tr = $('<tr></tr>');
                     if (this.level == 'DEBUG') {
@@ -430,20 +440,184 @@
                     }
                     else if (this.level == 'NOTICE') {
                         tr.addClass('info');
+                        notice++;
                     }
                     else if (this.level == 'WARNING') {
                         tr.addClass('warning');
+                        warning++;
                     }
-                    else if (this.level == 'ERROR' || this.level == 'CRITICAL') {
+                    else if (this.level == 'ERROR') {
                         tr.addClass('danger');
+                        tr.addClass('za-error');
+                        error++;
+                    }
+                    else if (this.level == 'CRITICAL') {
+                        tr.addClass('danger');
+                        tr.addClass('za-critical');
+                        critical++;
+                    }
+                    else {
+                        tr.addClass('za-info');
+                        info++;
                     }
                     $('<th scope="row"></th>').text(i++).appendTo(tr);
                     $('<td></td>').text(this.module).appendTo(tr);
                     $('<td></td>').text(this.level).appendTo(tr);
                     $('<td></td>').text(this.tag).appendTo(tr);
                     $('<td style="text-align: left;"></td>').text(this.message ? this.message.replace(/,(?! )/g, ', ').replace(/;(?! )/g, '; ') : '...').appendTo(tr);
+
                     tr.appendTo($('tbody'));
+
+                    $('.nav-pills > li:eq(2) .badge').text(info);
+                    $('.nav-pills > li:eq(3) .badge').text(notice);
+                    $('.nav-pills > li:eq(4) .badge').text(warning);
+                    $('.nav-pills > li:eq(5) .badge').text(error);
+                    $('.nav-pills > li:eq(6) .badge').text(critical);
                 });
+            },
+            switchLang: function (lang) {
+                if (!zonalizer.analyze._id || (zonalizer.analyze._lang && lang == zonalizer.analyze._lang)) {
+                    return;
+                }
+
+                zonalizer.analyze._lang = lang;
+                $.ajax({
+                    dataType: 'json',
+                    url: '/zonalizer/1/analysis/'+zonalizer.analyze._id+'?lang='+lang,
+                    method: 'GET'
+                })
+                .done(function (data) {
+                    if (typeof data === 'object' && data.id && data.fqdn && data.progress > -1) {
+                        zonalizer.api.ok();
+
+                        if (data.progress >= 100 && data.results && typeof data.results === 'object' && (data.results.isArray || data.results instanceof Array)) {
+                            zonalizer.analyze.display(data.results);
+
+                            if (!zonalizer.analyze._show.all) {
+                                if (!zonalizer.analyze._show.info) {
+                                    $('tbody tr.za-info').hide();
+                                }
+                                if (!zonalizer.analyze._show.notice) {
+                                    $('tbody tr.info').hide();
+                                }
+                                if (!zonalizer.analyze._show.warning) {
+                                    $('tbody tr.warning').hide();
+                                }
+                                if (!zonalizer.analyze._show.error) {
+                                    $('tbody tr.za-error').hide();
+                                }
+                                if (!zonalizer.analyze._show.critical) {
+                                    $('tbody tr.za-critical').hide();
+                                }
+                            }
+                        }
+                        return;
+                    }
+
+// TODO: Need to check for missing
+                    zonalizer.api.error();
+                    zonalizer.analyze.fail();
+                })
+                .fail(function () {
+// TODO: Need to check for missing
+                    zonalizer.api.down();
+                    zonalizer.analyze.fail();
+                });
+            },
+            toggle: function (what) {
+                if (what != 'all' && zonalizer.analyze._show.all) {
+                    $('tbody tr').hide();
+                    zonalizer.analyze._show.all = 0;
+                    $('.nav-pills > li:eq(1)').removeClass('active');
+                }
+                switch (what) {
+                    case 'info':
+                        if (zonalizer.analyze._show.info) {
+                            $('tbody tr.za-info').hide();
+                            $('.nav-pills > li:eq(2)').removeClass('active info');
+                        }
+                        else {
+                            $('tbody tr.za-info').show();
+                            $('.nav-pills > li:eq(2)').addClass('active info');
+                        }
+                        zonalizer.analyze._show.info = zonalizer.analyze._show.info ? 0 : 1;
+                        break;
+
+                    case 'notice':
+                        if (zonalizer.analyze._show.notice) {
+                            $('tbody tr.info').hide();
+                            $('.nav-pills > li:eq(3)').removeClass('active notice');
+                        }
+                        else {
+                            $('tbody tr.info').show();
+                            $('.nav-pills > li:eq(3)').addClass('active notice');
+                        }
+                        zonalizer.analyze._show.notice = zonalizer.analyze._show.notice ? 0 : 1;
+                        break;
+
+                    case 'warning':
+                        if (zonalizer.analyze._show.warning) {
+                            $('tbody tr.warning').hide();
+                            $('.nav-pills > li:eq(4)').removeClass('active warning');
+                        }
+                        else {
+                            $('tbody tr.warning').show();
+                            $('.nav-pills > li:eq(4)').addClass('active warning');
+                        }
+                        zonalizer.analyze._show.warning = zonalizer.analyze._show.warning ? 0 : 1;
+                        break;
+
+                    case 'error':
+                        if (zonalizer.analyze._show.error) {
+                            $('tbody tr.za-error').hide();
+                            $('.nav-pills > li:eq(5)').removeClass('active danger');
+                        }
+                        else {
+                            $('tbody tr.za-error').show();
+                            $('.nav-pills > li:eq(5)').addClass('active danger');
+                        }
+                        zonalizer.analyze._show.error = zonalizer.analyze._show.error ? 0 : 1;
+                        break;
+
+                    case 'critical':
+                        if (zonalizer.analyze._show.critical) {
+                            $('tbody tr.za-critical').hide();
+                            $('.nav-pills > li:eq(6)').removeClass('active danger');
+                        }
+                        else {
+                            $('tbody tr.za-critical').show();
+                            $('.nav-pills > li:eq(6)').addClass('active danger');
+                        }
+                        zonalizer.analyze._show.critical = zonalizer.analyze._show.critical ? 0 : 1;
+                        break;
+
+                    default:
+                        zonalizer.analyze._show.all = 1;
+                        zonalizer.analyze._show.info = 0;
+                        zonalizer.analyze._show.notice = 0;
+                        zonalizer.analyze._show.warning = 0;
+                        zonalizer.analyze._show.error = 0;
+                        zonalizer.analyze._show.critical = 0;
+                        $('tbody tr').show();
+                        $('.nav-pills > li:eq(2)').removeClass('active info');
+                        $('.nav-pills > li:eq(3)').removeClass('active notice');
+                        $('.nav-pills > li:eq(4)').removeClass('active warning');
+                        $('.nav-pills > li:eq(5)').removeClass('active danger');
+                        $('.nav-pills > li:eq(6)').removeClass('active danger');
+                        $('.nav-pills > li:eq(1)').addClass('active');
+                }
+
+                if (!zonalizer.analyze._show.all
+                    && !zonalizer.analyze._show.info
+                    && !zonalizer.analyze._show.notice
+                    && !zonalizer.analyze._show.warning
+                    && !zonalizer.analyze._show.error
+                    && !zonalizer.analyze._show.critical)
+                {
+                    zonalizer.analyze._show.all = 1;
+                    $('tbody tr').show();
+                    $('.nav-pills > li:eq(1)').addClass('active');
+                }
             }
         },
         browse: {
@@ -699,6 +873,53 @@
                     }
                     $('input:eq(0)').val('');
                     zonalizer.analyze.done();
+                });
+
+                $('.nav-pills .dropdown .dropdown-menu a:eq(0)').click(function () {
+                    $('.nav-pills .dropdown .dropdown-menu li').removeClass('active');
+                    $('.nav-pills .dropdown .dropdown-menu li:eq(0)').addClass('active');
+                    zonalizer.analyze.switchLang('en_US');
+                });
+                $('.nav-pills .dropdown .dropdown-menu a:eq(1)').click(function () {
+                    $('.nav-pills .dropdown .dropdown-menu li').removeClass('active');
+                    $('.nav-pills .dropdown .dropdown-menu li:eq(1)').addClass('active');
+                    zonalizer.analyze.switchLang('fr_FR');
+                });
+                $('.nav-pills .dropdown .dropdown-menu a:eq(2)').click(function () {
+                    $('.nav-pills .dropdown .dropdown-menu li').removeClass('active');
+                    $('.nav-pills .dropdown .dropdown-menu li:eq(2)').addClass('active');
+                    zonalizer.analyze.switchLang('sv_SE');
+                });
+
+                $('.nav-pills > li:eq(1) > a').click(function (event) {
+                    zonalizer.analyze.toggle('all');
+                    event.preventDefault();
+                    return false;
+                });
+                $('.nav-pills > li:eq(2) > a').click(function (event) {
+                    zonalizer.analyze.toggle('info');
+                    event.preventDefault();
+                    return false;
+                });
+                $('.nav-pills > li:eq(3) > a').click(function (event) {
+                    zonalizer.analyze.toggle('notice');
+                    event.preventDefault();
+                    return false;
+                });
+                $('.nav-pills > li:eq(4) > a').click(function (event) {
+                    zonalizer.analyze.toggle('warning');
+                    event.preventDefault();
+                    return false;
+                });
+                $('.nav-pills > li:eq(5) > a').click(function (event) {
+                    zonalizer.analyze.toggle('error');
+                    event.preventDefault();
+                    return false;
+                });
+                $('.nav-pills > li:eq(6) > a').click(function (event) {
+                    zonalizer.analyze.toggle('critical');
+                    event.preventDefault();
+                    return false;
                 });
 
                 if (window.location.search.match(/^\?[a-zA-Z0-9_=\-]+$/)) {

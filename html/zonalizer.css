@@ -24,13 +24,42 @@ table .progress {
     cursor: pointer;
     cursor: hand;
 }
+.nav-pills li.active.info a {
+    background-color: #464545;
+}
+.nav-pills li.active.notice a {
+    background-color: #3498db;
+}
+.nav-pills li.active.warning a {
+    background-color: #f39c12;
+}
+.nav-pills li.active.danger a {
+    background-color: #e74c3c;
+}
 @media screen and (max-width: 767px) {
     .container .jumbotron,
     .container-fluid .jumbotron {
         padding-left: 15px;
         padding-right: 15px;
     }
-    .browse tr th:nth-child(3), .browse tr td:nth-child(3) {
+    .browse tr th:nth-child(3),
+    .browse tr td:nth-child(3) {
+        display: none;
+    }
+    .analyze tr th:nth-child(2), .analyze tr th:nth-child(3), .analyze tr th:nth-child(4),
+    .analyze tr td:nth-child(2), .analyze tr td:nth-child(3), .analyze tr td:nth-child(4) {
+        display: none;
+    }
+}
+@media screen and (max-width: 992px) {
+    .analyze tr th:nth-child(3), .analyze tr th:nth-child(4),
+    .analyze tr td:nth-child(3), .analyze tr td:nth-child(4) {
+        display: none;
+    }
+}
+@media screen and (max-width: 1200px) {
+    .analyze tr th:nth-child(4),
+    .analyze tr td:nth-child(4) {
         display: none;
     }
 }
