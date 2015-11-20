@@ -36,14 +36,17 @@ table .progress {
 .nav-pills li.active.danger a {
     background-color: #e74c3c;
 }
+.progress-bar-muted {
+    background-color: #999999;
+}
 @media screen and (max-width: 767px) {
     .container .jumbotron,
     .container-fluid .jumbotron {
         padding-left: 15px;
         padding-right: 15px;
     }
-    .browse tr th:nth-child(3),
-    .browse tr td:nth-child(3) {
+    .browse tr th:nth-child(3), .browse tr th:nth-child(4),
+    .browse tr td:nth-child(3), .browse tr td:nth-child(4) {
         display: none;
     }
     .analyze tr th:nth-child(2), .analyze tr th:nth-child(3), .analyze tr th:nth-child(4),
@@ -52,6 +55,10 @@ table .progress {
     }
 }
 @media screen and (max-width: 992px) {
+    .browse tr th:nth-child(3),
+    .browse tr td:nth-child(3) {
+        display: none;
+    }
     .analyze tr th:nth-child(3), .analyze tr th:nth-child(4),
     .analyze tr td:nth-child(3), .analyze tr td:nth-child(4) {
         display: none;

@@ -249,7 +249,7 @@
                 $('.jumbotron h1').text('Analyze Your Zone Now');
                 $('.jumbotron p').text('Don\'t let broken zones stop your users from surfing, analyze and fix them today!');
                 $('.jumbotron .progress, .table, .nav-pills, .jumbotron > div > div:eq(1) > button, .container > p').fadeOut('fast').promise().done(function () {
-                    $('.jumbotron .form-group, div.row, .alert').fadeIn('fast').promise().done(function () {
+                    $('.jumbotron .form-group:eq(0), div.row, .alert').fadeIn('fast').promise().done(function () {
                         zonalizer.status.start();
                     });
                 });
@@ -259,7 +259,7 @@
                 $('.jumbotron h1').text('Analyze Your Zone Now');
                 $('.jumbotron p').text('Don\'t let broken zones stop your users from surfing, analyze and fix them today!');
                 $('.table, .nav-pills, .jumbotron > div > div:eq(1) > button').fadeOut('fast').promise().done(function () {
-                    $('.jumbotron .form-group, div.row').fadeIn('fast').promise().done(function () {
+                    $('.jumbotron .form-group:eq(0), div.row').fadeIn('fast').promise().done(function () {
                         zonalizer.status.start();
                     });
                 });
@@ -305,11 +305,9 @@
                             })
                             .done(function (data) {
                                 if (typeof data === 'object' && data.id && data.results && typeof data.results === 'object' && (data.results.isArray || data.results instanceof Array)) {
-                                    var href = window.location.href.replace(/\?.*$/, '').replace(/#.*$/, '');
-                                    $('.table caption > a').attr('href', '?'+data.id).text(href+'?'+data.id);
 
                                     zonalizer.analyze._id = id;
-                                    zonalizer.analyze.display(data.results);
+                                    zonalizer.analyze.display(data);
 
                                     $('.table, .nav-pills, .jumbotron > div > div:eq(1) > button').fadeIn('fast');
                                     return;
@@ -350,7 +348,7 @@
             load: function (id) {
                 $('.jumbotron h1').text('Loading analyze ...');
                 $('.jumbotron p').text('');
-                $('.jumbotron .form-group, div.row, .alert').hide();
+                $('.jumbotron .form-group:eq(0), div.row, .alert').hide();
 
                 zonalizer.analyze._id = id;
                 $.ajax({
@@ -369,15 +367,12 @@
                                 $('.table, .nav-pills, .jumbotron > div > div:eq(1) > button').fadeIn('fast');
                             });
 
-                            var href = window.location.href.replace(/\?.*$/, '').replace(/#.*$/, '');
-                            $('.table caption > a').attr('href', '?'+data.id).text(href+'?'+data.id);
-
-                            zonalizer.analyze.display(data.results);
+                            zonalizer.analyze.display(data);
                         }
                         else {
                             $('.jumbotron h1').text('Analysing ...');
                             $('.jumbotron p').text(data.fqdn);
-                            $('.jumbotron .form-group, div.row, .alert').fadeOut('fast').promise().done(function () {
+                            $('.jumbotron .form-group:eq(0), div.row, .alert').fadeOut('fast').promise().done(function () {
                                 $('.jumbotron .progress').fadeIn('fast');
                             });
                             zonalizer.analyze._id = id;
@@ -399,14 +394,16 @@
             zone: function (zone) {
                 $('.jumbotron h1').text('Analysing ...');
                 $('.jumbotron p').text(zone);
-                $('.jumbotron .form-group, div.row, .alert').fadeOut('fast').promise().done(function () {
+                $('.jumbotron .form-group:eq(0), div.row, .alert').fadeOut('fast').promise().done(function () {
                     $('.container > p').empty();
                     $('.jumbotron .progress, .container > p').fadeIn('fast').promise().done(function () {
                         $.ajax({
                             dataType: 'json',
                             url: '/zonalizer/1/analysis',
                             data: {
-                                fqdn: zone
+                                fqdn: zone,
+                                ipv4: $('#ipv4').is(':checked') == true ? 1 : 0,
+                                ipv6: $('#ipv6').is(':checked') == true ? 1 : 0
                             },
                             method: 'POST'
                         })
@@ -427,14 +424,31 @@
                     });
                 });
             },
-            display: function (results) {
-                results.sort(function (a, b) {
+            display: function (data) {
+                var href = window.location.href.replace(/\?.*$/, '').replace(/#.*$/, '');
+                $('.table caption > a').attr('href', '?'+data.id).text(href+'?'+data.id);
+
+                $('.nav-pills span.glyphicon').removeClass('glyphicon-ok-circle glyphicon-ban-circle text-success text-danger');
+                if ( data.ipv4 ) {
+                    $('.nav-pills span.glyphicon:eq(1)').addClass('text-success glyphicon-ok-circle');
+                }
+                else {
+                    $('.nav-pills span.glyphicon:eq(1)').addClass('text-danger glyphicon-ban-circle');
+                }
+                if ( data.ipv6 ) {
+                    $('.nav-pills span.glyphicon:eq(0)').addClass('text-success glyphicon-ok-circle');
+                }
+                else {
+                    $('.nav-pills span.glyphicon:eq(0)').addClass('text-danger glyphicon-ban-circle');
+                }
+
+                data.results.sort(function (a, b) {
                     return a.timestamp - b.timestamp;
                 });
 
                 $('tbody').empty();
                 var i = 1, info = 0, notice = 0, warning = 0, error = 0, critical = 0;
-                $(results).each(function (index) {
+                $(data.results).each(function (index) {
                     var tr = $('<tr></tr>');
                     if (this.level == 'DEBUG') {
                         tr.addClass('text-muted');
@@ -492,7 +506,7 @@
                         zonalizer.api.ok();
 
                         if (data.progress >= 100 && data.results && typeof data.results === 'object' && (data.results.isArray || data.results instanceof Array)) {
-                            zonalizer.analyze.display(data.results);
+                            zonalizer.analyze.display(data);
 
                             if (!zonalizer.analyze._show.all) {
                                 if (!zonalizer.analyze._show.info) {
@@ -720,7 +734,9 @@
                             zonalizer.browse.display(data.analysis);
 
                             $('tbody tr').click(function () {
-                                window.location.href = '/?'+$(this).data('zonalizer-id');
+                                if ($(this).data('zonalizer-id')) {
+                                    window.location.href = '/?'+$(this).data('zonalizer-id');
+                                }
                             });
 
                             if (data.paging && typeof data.paging === 'object' && data.paging.previous) {
@@ -754,37 +770,46 @@
                 $('tbody').empty();
                 var i = 1;
                 $(analysis).each(function (index) {
-                    var tr = $('<tr style="cursor: pointer; cursor: hand"></tr>');
-                    tr.data('zonalizer-id', this.id);
-                    $('<td></td>').text(this.fqdn).appendTo(tr);
-
-                    var total = this.summary.notice
-                        + this.summary.warning
-                        + this.summary.error
-                        + this.summary.critical;
-                    var warning = Math.floor((this.summary.warning*100)/total);
-                    var danger = Math.floor(((this.summary.error+this.summary.critical)*100)/total);
-
+                    var tr;
                     var health = $('<div class="progress"></div>');
-                    if (total) {
-                        if ((100-warning-danger) > 0) {
-                            $('<div class="progress-bar progress-bar-info"></div>')
-                                .css('width', (100-warning-danger)+'%')
-                                .appendTo(health);
+                    if (this.status == 'done') {
+                        tr = $('<tr style="cursor: pointer; cursor: hand"></tr>');
+                        tr.data('zonalizer-id', this.id);
+                        $('<td></td>').text(this.fqdn).appendTo(tr);
+
+                        var total = this.summary.notice
+                            + this.summary.warning
+                            + this.summary.error
+                            + this.summary.critical;
+                        var warning = Math.floor((this.summary.warning*100)/total);
+                        var danger = Math.floor(((this.summary.error+this.summary.critical)*100)/total);
+
+                        if (total) {
+                            if ((100-warning-danger) > 0) {
+                                $('<div class="progress-bar progress-bar-info"></div>')
+                                    .css('width', (100-warning-danger)+'%')
+                                    .appendTo(health);
+                            }
+                            if (warning > 0) {
+                                $('<div class="progress-bar progress-bar-warning"></div>')
+                                    .css('width', warning+'%')
+                                    .appendTo(health);
+                            }
+                            if (danger > 0) {
+                                $('<div class="progress-bar progress-bar-danger"></div>')
+                                    .css('width', danger+'%')
+                                    .appendTo(health);
+                            }
                         }
-                        if (warning > 0) {
-                            $('<div class="progress-bar progress-bar-warning"></div>')
-                                .css('width', warning+'%')
-                                .appendTo(health);
-                        }
-                        if (danger > 0) {
-                            $('<div class="progress-bar progress-bar-danger"></div>')
-                                .css('width', danger+'%')
+                        else {
+                            $('<div class="progress-bar progress-bar-success" style="width: 100%"></div>')
                                 .appendTo(health);
                         }
                     }
                     else {
-                        $('<div class="progress-bar progress-bar-success" style="width: 100%"></div>')
+                        tr = $('<tr></tr>');
+                        $('<td></td>').text(this.fqdn).appendTo(tr);
+                        $('<div class="progress-bar progress-bar-success progress-bar-muted" style="width: 100%"></div>')
                             .appendTo(health);
                     }
                     var td = $('<td></td>');
@@ -792,19 +817,39 @@
                     td.appendTo(tr);
 
                     var status = 'OK';
-                    if (this.summary.critical) {
-                        status = 'CRITICAL';
+                    if (this.status == 'done') {
+                        if (this.summary.critical) {
+                            status = 'CRITICAL';
+                        }
+                        else if (this.summary.error) {
+                            status = 'Error'
+                        }
+                        else if (this.summary.warning) {
+                            status = 'Warning'
+                        }
+                        else if (this.summary.notice) {
+                            status = 'Notice'
+                        }
                     }
-                    else if (this.summary.error) {
-                        status = 'Error'
+                    else if (this.status == 'failed') {
+                        status = 'FAILED';
                     }
-                    else if (this.summary.warning) {
-                        status = 'Warning'
+                    else if (this.status == 'stopped') {
+                        status = 'Stopped';
                     }
-                    else if (this.summary.notice) {
-                        status = 'Notice'
+                    else {
+                        status = 'Unknown';
                     }
                     $('<td></td>').text(status).appendTo(tr);
+
+                    var ipv = '';
+                    if ( this.ipv4 ) {
+                        ipv += '4';
+                    }
+                    if ( this.ipv6 ) {
+                        ipv += ( ipv ? '/' : '' ) + '6';
+                    }
+                    $('<td></td>').text(ipv).appendTo(tr);
 
                     var seconds = Math.floor(((new Date()).getTime()/1000) - this.updated);
                     if (seconds < 60) {
@@ -843,23 +888,34 @@
                     $('.alert').fadeOut('fast');
                 });
 
-                $('form button').prop('disabled', true);
+                $('form:eq(0) button:eq(0)').click(function () {
+                    $('.options').toggle();
+                });
+                $('#ipv4').click(function () {
+                    $('#ipv6').not(':checked').prop('checked', true);
+                });
+                $('#ipv6').click(function () {
+                    $('#ipv4').not(':checked').prop('checked', true);
+                });
+
+                $('form:eq(0) button:eq(1)').prop('disabled', true);
                 var f = function() {
                     var zone = $('input:eq(0)').val();
 
                     if (zone && zone.match(/^[a-zA-Z0-9\.-]+$/)) {
-                        $('form button').prop('disabled', false);
+                        $('form:eq(0) button:eq(1)').prop('disabled', false);
                     }
                     else {
-                        $('form button').prop('disabled', true);
+                        $('form:eq(0) button:eq(1)').prop('disabled', true);
                     }
                 };
                 $('input:eq(0)').on('input propertychange paste', f);
                 f();
-                $('form').submit(function (event) {
+                $('form:eq(0)').submit(function (event) {
                     var zone = $('input:eq(0)').val();
 
                     if (zone && zone.match(/^[a-zA-Z0-9\.-]+$/)) {
+                        $('.options').hide();
                         zonalizer.mini.stop();
                         zonalizer.status.stop();
                         zonalizer.analyze.zone(zone);
