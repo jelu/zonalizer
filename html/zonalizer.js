@@ -397,14 +397,20 @@
                 $('.jumbotron .form-group:eq(0), div.row, .alert').fadeOut('fast').promise().done(function () {
                     $('.container > p').empty();
                     $('.jumbotron .progress, .container > p').fadeIn('fast').promise().done(function () {
+                        var data = {
+                            fqdn: zone
+                        };
+                        if ( $('#ipv4').data('ipv-default') == false ) {
+                            data.ipv4 = $('#ipv4').is(':checked') == true ? 1 : 0;
+                        }
+                        if ( $('#ipv6').data('ipv-default') == false ) {
+                            data.ipv6 = $('#ipv6').is(':checked') == true ? 1 : 0;
+                        }
+
                         $.ajax({
                             dataType: 'json',
                             url: '/zonalizer/1/analysis',
-                            data: {
-                                fqdn: zone,
-                                ipv4: $('#ipv4').is(':checked') == true ? 1 : 0,
-                                ipv6: $('#ipv6').is(':checked') == true ? 1 : 0
-                            },
+                            data: data,
                             method: 'POST'
                         })
                         .done(function (data) {
@@ -891,10 +897,15 @@
                 $('form:eq(0) button:eq(0)').click(function () {
                     $('.options').toggle();
                 });
+                $('#ipv4, #ipv6').data('ipv-default', true);
                 $('#ipv4').click(function () {
+                    $('#ipv4').siblings('span').remove();
+                    $('#ipv4').data('ipv-default', false);
                     $('#ipv6').not(':checked').prop('checked', true);
                 });
                 $('#ipv6').click(function () {
+                    $('#ipv6').siblings('span').remove();
+                    $('#ipv6').data('ipv-default', false);
                     $('#ipv4').not(':checked').prop('checked', true);
                 });
 
