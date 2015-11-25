@@ -27,6 +27,7 @@ Lim::LoadConfig($ARGV[0]);
 Lim::UpdateConfig;
 
 Lim::Config->{zonalizer}->{iana_interval} ||= 86400;
+Lim::Config->{zonalizer}->{next_interval} ||= 60;
 
 my ($state, %state, %tld);
 $state = tie %state, 'DB_File', $ARGV[1];
@@ -137,7 +138,7 @@ $ongoing_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
     });
 });
 
-$queue_w = AnyEvent->timer( after => 2, interval => 2, cb => sub {
+$queue_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
     if ( $state{ongoing} ) {
         return;
     }
@@ -145,7 +146,7 @@ $queue_w = AnyEvent->timer( after => 2, interval => 2, cb => sub {
         return;
     }
 
-    $state{queue} =~ s/^(\S+)\s+?//o;
+    $state{queue} =~ s/^(\S+)\s*//o;
     my $queue_entry = $1;
     my $dn = $queue_entry;
 
@@ -161,7 +162,7 @@ $queue_w = AnyEvent->timer( after => 2, interval => 2, cb => sub {
         my ( $c, $r ) = @_;
 
         if ( $c->Successful ) {
-            Lim::INFO and $logger->info('Analyzing ', $dn);
+            Lim::INFO and $logger->info('Analyzing ', $dn, ' ', $r->{id});
             $state{ongoing} = $r->{id};
             $state->sync;
             return;
@@ -183,8 +184,8 @@ $queue_w = AnyEvent->timer( after => 2, interval => 2, cb => sub {
     });
 });
 
-$next_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
-    if ( $state{queue} ) {
+$next_w = AnyEvent->timer( after => 5, interval => Lim::Config->{zonalizer}->{next_interval}, cb => sub {
+    if ( $state{queue} or $state{ongoing} ) {
         return;
     }
 

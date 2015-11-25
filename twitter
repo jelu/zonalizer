@@ -124,7 +124,7 @@ $queue_w = AnyEvent->timer( after => 2, interval => 10, cb => sub {
         return;
     }
 
-    $state{queue} =~ s/^(\S+)\s+?//o;
+    $state{queue} =~ s/^(\S+)\s*//o;
     my $queue_entry = $1;
     my ($reply, $screen_name, $tweet_id, $dn) = split(/:/o, $queue_entry);
 
