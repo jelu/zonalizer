@@ -52,7 +52,7 @@ my $cv = AnyEvent->condvar;
 my ( $ongoing, $ongoing_w, $queue_w, $diffroot_w, $mention_w );
 
 $ongoing_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
-    unless ( exists $state{ongoing} ) {
+    unless ( $state{ongoing} ) {
         return;
     }
     if ( $ongoing ) {
@@ -117,7 +117,7 @@ $ongoing_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
 });
 
 $queue_w = AnyEvent->timer( after => 2, interval => 10, cb => sub {
-    if ( $state{ongoing} ) {
+    if ( defined $state{ongoing} ) {
         return;
     }
     unless ( $state{queue} ) {

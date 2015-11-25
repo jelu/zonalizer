@@ -47,7 +47,7 @@ $update_w = AnyEvent->timer( after => 1, interval => Lim::Config->{zonalizer}->{
         my ($body, $hdr) = @_;
 
         unless ($hdr->{Status} == 200 and defined $hdr->{'content-type'} and $hdr->{'content-type'} =~ /text\/plain/o) {
-            $logger->error('Failed to get ', Lim::Config->{zonalizer}->{iana_url}, ' [', $hdr->{Status}, ( defined $hdr->{'content-type'} ? ' / '.$hdr->{'content-type'} : () ), ']');
+            Lim::ERR and $logger->error('Failed to get ', Lim::Config->{zonalizer}->{iana_url}, ' [', $hdr->{Status}, ( defined $hdr->{'content-type'} ? ' / '.$hdr->{'content-type'} : () ), ']');
             undef $req;
             return;
         }
@@ -92,14 +92,14 @@ $update_w = AnyEvent->timer( after => 1, interval => Lim::Config->{zonalizer}->{
             $tld{_} = $first;
         }
 
-        $logger->info('TLDs received, ', $en, ' enabled and ', $dis, ' disabled.');
+        Lim::INFO and $logger->info('TLDs received, ', $en, ' enabled and ', $dis, ' disabled.');
 
         undef $req;
     };
 });
 
 $ongoing_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
-    unless ( exists $state{ongoing} ) {
+    unless ( $state{ongoing} ) {
         return;
     }
     if ( $ongoing ) {
@@ -125,6 +125,7 @@ $ongoing_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
         }
 
         if ( $r->{progress} < 100 ) {
+            Lim::INFO and $logger->info($state{dn}, ' at ', $r->{progress}, '%');
             return;
         }
 
@@ -139,7 +140,7 @@ $ongoing_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
 });
 
 $queue_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
-    if ( $state{ongoing} ) {
+    if ( defined $state{ongoing} ) {
         return;
     }
     unless ( $state{queue} ) {
@@ -190,7 +191,7 @@ $next_w = AnyEvent->timer( after => 5, interval => Lim::Config->{zonalizer}->{ne
     }
 
     if ( $state{tld} ) {
-        $logger->info( $state{tld}, ' => ', $tld{$state{tld}}->{next} ? $tld{$state{tld}}->{next} : '_' );
+        Lim::INFO and $logger->info( $state{tld}, ' => ', $tld{$state{tld}}->{next} ? $tld{$state{tld}}->{next} : '_' );
         $state{tld} = $tld{$state{tld}}->{next};
     }
 
@@ -200,7 +201,7 @@ $next_w = AnyEvent->timer( after => 5, interval => Lim::Config->{zonalizer}->{ne
         }
 
         $state{tld} = $tld{_}->{tld};
-        $logger->info( 'start ', $state{tld} );
+        Lim::INFO and $logger->info( 'start ', $state{tld} );
     }
 
     $state{queue} = $state{tld};
