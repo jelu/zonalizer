@@ -1,0 +1,214 @@
+#!/usr/bin/env perl
+
+use common::sense;
+
+use EV;
+use AnyEvent;
+use Log::Log4perl;
+use Lim::Plugin::Zonalizer;
+use DB_File;
+use HTTP::Status;
+use AnyEvent::HTTP;
+
+use Data::Dumper;
+
+STDOUT->autoflush(1);
+
+Log::Log4perl->init( \q(
+log4perl.logger                   = DEBUG, Screen
+log4perl.appender.Screen          = Log::Log4perl::Appender::Screen
+log4perl.appender.Screen.stderr   = 0
+log4perl.appender.Screen.layout   = Log::Log4perl::Layout::PatternLayout
+log4perl.appender.Screen.layout.ConversionPattern = %d %F [%L] %p: %m%n
+) );
+my $logger = Log::Log4perl->get_logger;
+
+Lim::LoadConfig($ARGV[0]);
+Lim::UpdateConfig;
+
+Lim::Config->{zonalizer}->{iana_interval} ||= 86400;
+
+my ($state, %state, %tld);
+$state = tie %state, 'DB_File', $ARGV[1];
+
+unless ( defined $state{queue} ) {
+    $state{queue} = '';
+}
+unless ( $state{ongoing} ) {
+    delete $state{ongoing};
+}
+
+my $cv = AnyEvent->condvar;
+my ( $update_w, $ongoing, $ongoing_w, $queue_w, $next_w );
+
+$update_w = AnyEvent->timer( after => 1, interval => Lim::Config->{zonalizer}->{iana_interval}, cb => sub {
+    my $req; $req = http_get Lim::Config->{zonalizer}->{iana_url}, sub {
+        my ($body, $hdr) = @_;
+
+        unless ($hdr->{Status} == 200 and defined $hdr->{'content-type'} and $hdr->{'content-type'} =~ /text\/plain/o) {
+            $logger->error('Failed to get ', Lim::Config->{zonalizer}->{iana_url}, ' [', $hdr->{Status}, ( defined $hdr->{'content-type'} ? ' / '.$hdr->{'content-type'} : () ), ']');
+            undef $req;
+            return;
+        }
+
+        my ($en, $dis, $last, $first) = (0,0);
+
+        delete $tld{_};
+        foreach (values %tld) {
+            $_->{en} = 0;
+        }
+
+        foreach (split(/[\r\n]+/omg, $body)) {
+            unless (/^[A-Z0-9-]+$/o) {
+                next;
+            }
+
+            my $tld = lc($_);
+            $en++;
+
+            $tld{$tld} = {
+                tld => $tld,
+                en => 1,
+                $last ? ( prev => $last->{tld} ) : ()
+            };
+            unless ( $first ) {
+                $first = $tld{$tld};
+            }
+            if ( $last ) {
+                $last->{next} = $tld;
+            }
+
+            $last = $tld{$tld};
+        }
+
+        foreach (values %tld) {
+            unless ($_->{en}) {
+                $dis++;
+            }
+        }
+
+        if ( $first ) {
+            $tld{_} = $first;
+        }
+
+        $logger->info('TLDs received, ', $en, ' enabled and ', $dis, ' disabled.');
+
+        undef $req;
+    };
+});
+
+$ongoing_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
+    unless ( exists $state{ongoing} ) {
+        return;
+    }
+    if ( $ongoing ) {
+        return;
+    }
+
+    $ongoing = 1;
+    Lim::Plugin::Zonalizer->Client->ReadAnalyze({
+        version => 1,
+        id => $state{ongoing},
+        results => 0
+    },
+    sub {
+        my ( $c, $r ) = @_;
+
+        $ongoing = 0;
+
+        unless ( $c->Successful ) {
+            Lim::ERR and $logger->error('Zonalizer error while analyzing ', $state{dn}, ': ', $c->Error->toString);
+            delete $state{ongoing};
+            $state->sync;
+            return;
+        }
+
+        if ( $r->{progress} < 100 ) {
+            return;
+        }
+
+        Lim::INFO and $logger->info($state{ongoing}, ' ', $state{dn}, ' finished ', $r->{summary}->{notice}, '/', $r->{summary}->{warning}, '/', $r->{summary}->{error}, '/', $r->{summary}->{critical});
+
+        delete $state{ongoing};
+        $state->sync;
+    },
+    {
+        uri => Lim::Config->{zonalizer}->{uri}
+    });
+});
+
+$queue_w = AnyEvent->timer( after => 2, interval => 2, cb => sub {
+    if ( $state{ongoing} ) {
+        return;
+    }
+    unless ( $state{queue} ) {
+        return;
+    }
+
+    $state{queue} =~ s/^(\S+)\s+?//o;
+    my $queue_entry = $1;
+    my $dn = $queue_entry;
+
+    $state{dn} = $dn;
+    $state{ongoing} = '';
+    $state->sync;
+
+    Lim::Plugin::Zonalizer->Client->CreateAnalyze({
+        version => 1,
+        fqdn => $dn
+    },
+    sub {
+        my ( $c, $r ) = @_;
+
+        if ( $c->Successful ) {
+            Lim::INFO and $logger->info('Analyzing ', $dn);
+            $state{ongoing} = $r->{id};
+            $state->sync;
+            return;
+        }
+
+        if ( $c->Error->code == HTTP::Status::HTTP_SERVICE_UNAVAILABLE ) {
+            $state{queue} = $queue_entry . ( $state{queue} ? ' ' . $state{queue} : '' );
+            $state{ongoing} = undef;
+            $state->sync;
+            return;
+        }
+
+        Lim::ERR and $logger->error('Failed to queue ', $dn, ' to zonalizer');
+        $state{ongoing} = undef;
+        $state->sync;
+    },
+    {
+        uri => Lim::Config->{zonalizer}->{uri}
+    });
+});
+
+$next_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
+    if ( $state{queue} ) {
+        return;
+    }
+
+    if ( $state{tld} ) {
+        $logger->info( $state{tld}, ' => ', $tld{$state{tld}}->{next} ? $tld{$state{tld}}->{next} : '_' );
+        $state{tld} = $tld{$state{tld}}->{next};
+    }
+
+    unless ( $state{tld} ) {
+        unless ( $tld{_} ) {
+            return;
+        }
+
+        $state{tld} = $tld{_}->{tld};
+        $logger->info( 'start ', $state{tld} );
+    }
+
+    $state{queue} = $state{tld};
+});
+
+sub fatal {
+    $logger->fatal(@_);
+    $update_w = $ongoing_w = $queue_w = $next_w = undef;
+    $cv->send;
+}
+
+$cv->recv;
