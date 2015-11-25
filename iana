@@ -98,7 +98,7 @@ $update_w = AnyEvent->timer( after => 1, interval => Lim::Config->{zonalizer}->{
     };
 });
 
-$ongoing_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
+$ongoing_w = AnyEvent->timer( after => 2, interval => 5, cb => sub {
     unless ( $state{ongoing} ) {
         return;
     }
@@ -185,7 +185,7 @@ $queue_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
     });
 });
 
-$next_w = AnyEvent->timer( after => 5, interval => Lim::Config->{zonalizer}->{next_interval}, cb => sub {
+$next_w = AnyEvent->timer( after => 3, interval => Lim::Config->{zonalizer}->{next_interval}, cb => sub {
     if ( $state{queue} or $state{ongoing} ) {
         return;
     }
