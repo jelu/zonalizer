@@ -648,7 +648,7 @@
             _direction: null,
             _th: {
                 fqdn: { n: 0, d: 'ascending' },
-                created: { n: 3, d: 'descending' }
+                created: { n: 4, d: 'descending' }
             },
             fail: function () {
                 $('table').hide();
@@ -684,7 +684,7 @@
                     event.preventDefault();
                     return false;
                 });
-                $('thead th:eq(3)').click(function (event) {
+                $('thead th:eq(4)').click(function (event) {
                     zonalizer.browse.sort('created');
                     zonalizer.browse.load();
                     event.preventDefault();
