@@ -646,10 +646,13 @@
             _next: null,
             _sort: null,
             _direction: null,
+            _search: null,
+            _limit: 10,
             _th: {
-                fqdn: { n: 0, d: 'ascending' },
-                created: { n: 4, d: 'descending' }
+                fqdn: { n: 0, d: 'ascending', e: 1 },
+                created: { n: 4, d: 'descending', e: 1 }
             },
+            _last: null,
             fail: function () {
                 $('table').hide();
                 $('.pagination').parent().hide();
@@ -679,21 +682,26 @@
                 });
                 zonalizer.browse.sort('created');
                 $('thead th:eq(0)').click(function (event) {
-                    zonalizer.browse.sort('fqdn');
-                    zonalizer.browse.load();
+                    if ( zonalizer.browse.sort('fqdn') ) {
+                        zonalizer.browse.load();
+                    }
                     event.preventDefault();
                     return false;
                 });
                 $('thead th:eq(4)').click(function (event) {
-                    zonalizer.browse.sort('created');
-                    zonalizer.browse.load();
+                    if ( zonalizer.browse.sort('created') ) {
+                        zonalizer.browse.load();
+                    }
                     event.preventDefault();
                     return false;
                 });
             },
             sort: function (what) {
                 if ( (typeof zonalizer.browse._th[what]) !== 'object' ) {
-                    return;
+                    return 0;
+                }
+                if ( ! zonalizer.browse._th[what].e ) {
+                    return 0;
                 }
 
                 if ( zonalizer.browse._sort == what ) {
@@ -714,10 +722,56 @@
                 .removeClass('text-muted')
                 .removeClass('glyphicon-sort')
                 .addClass( zonalizer.browse._direction == 'ascending' ? 'glyphicon-sort-by-attributes' : 'glyphicon-sort-by-attributes-alt' );
+
+                return 1;
+            },
+            search: function (fqdn) {
+                if ( fqdn ) {
+                    zonalizer.browse._search = fqdn;
+
+                    if ( zonalizer.browse._sort == 'fqdn' ) {
+                        zonalizer.browse.sort('created');
+                        if ( zonalizer.browse._direction != 'descending' ) {
+                            zonalizer.browse.sort('created');
+                        }
+                    }
+
+                    $('thead th:eq('+zonalizer.browse._th['fqdn'].n+') span')
+                    .hide();
+                    zonalizer.browse._th['fqdn'].e = 0;
+                }
+                else {
+                    zonalizer.browse._search = null;
+                    $('thead th:eq('+zonalizer.browse._th['fqdn'].n+') span')
+                    .show();
+                    zonalizer.browse._th['fqdn'].e = 1;
+                }
+
+                zonalizer.browse.load();
+            },
+            limit: function (limit) {
+                limit = parseInt(limit);
+
+                if (limit > 0) {
+                    zonalizer.browse._limit = limit;
+                    zonalizer.browse.load( zonalizer.browse._last );
+                }
             },
             load: function (url) {
                 if (!url) {
-                    url = '/zonalizer/1/analysis?sort='+zonalizer.browse._sort+'&direction='+zonalizer.browse._direction;
+                    url = '/zonalizer/1/analysis?sort=' + zonalizer.browse._sort
+                        + '&direction=' + zonalizer.browse._direction
+                        + '&limit=' + zonalizer.browse._limit;
+                }
+
+                if (zonalizer.browse._search) {
+                    if (url.indexOf('?')) {
+                        url = url + '&';
+                    }
+                    else {
+                        url = url + '?';
+                    }
+                    url = url + 'search=' + encodeURIComponent(zonalizer.browse._search);
                 }
 
                 $.ajax({
@@ -737,6 +791,7 @@
                         }
 
                         if (data.analysis) {
+                            zonalizer.browse._last = url;
                             zonalizer.browse.display(data.analysis);
 
                             $('tbody tr').click(function () {
@@ -1001,6 +1056,25 @@
                 $('.alert').hide();
                 zonalizer.browse.init();
                 zonalizer.browse.load();
+
+                $('form:eq(0)').submit(function (event) {
+                    var fqdn = $('input:eq(0)').val();
+
+                    if (fqdn && fqdn.match(/^[a-zA-Z0-9\.-]+$/)) {
+                        zonalizer.browse.search(fqdn);
+                    }
+                    else {
+                        zonalizer.browse.search();
+                    }
+
+                    event.preventDefault();
+                    return false;
+                });
+                $('form select').change(function () {
+                    $( 'option:selected', $(this) ).each(function() {
+                        zonalizer.browse.limit($(this).text());
+                    });
+                });
             }
         }
     };
