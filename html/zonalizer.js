@@ -652,7 +652,6 @@
                 fqdn: { n: 0, d: 'ascending', e: 1 },
                 created: { n: 4, d: 'descending', e: 1 }
             },
-            _last: null,
             fail: function () {
                 $('table').hide();
                 $('.pagination').parent().hide();
@@ -754,7 +753,7 @@
 
                 if (limit > 0) {
                     zonalizer.browse._limit = limit;
-                    zonalizer.browse.load( zonalizer.browse._last );
+                    zonalizer.browse.load();
                 }
             },
             load: function (url) {
@@ -791,7 +790,6 @@
                         }
 
                         if (data.analysis) {
-                            zonalizer.browse._last = url;
                             zonalizer.browse.display(data.analysis);
 
                             $('tbody tr').click(function () {
