@@ -170,14 +170,15 @@ $queue_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
         }
 
         if ( $c->Error->code == HTTP::Status::HTTP_SERVICE_UNAVAILABLE ) {
+            Lim::INFO and $logger->info('Queue full, retrying');
             $state{queue} = $queue_entry . ( $state{queue} ? ' ' . $state{queue} : '' );
-            $state{ongoing} = undef;
+            delete $state{ongoing};
             $state->sync;
             return;
         }
 
-        Lim::ERR and $logger->error('Failed to queue ', $dn, ' to zonalizer');
-        $state{ongoing} = undef;
+        Lim::ERR and $logger->error('Failed to queue ', $dn, ' to zonalizer: ', $c->Error->toString);
+        delete $state{ongoing};
         $state->sync;
     },
     {
