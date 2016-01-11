@@ -89,7 +89,15 @@
                 </div>
 
                 <div class="options" style="margin-top: 20px; display: none">
+
                     <form>
+
+<div class="container-fluid">
+<div class="row">
+<div class="col-sm-12 col-md-6">
+
+<p>Network Restrictions</p>
+
                         <div class="form-group">
                             <label for="ipv4">
                                 <input id="ipv4" type="checkbox" checked="true" /> Use IPv4 <span class="text-muted">(server side default)</span>
@@ -100,7 +108,32 @@
                                 <input id="ipv6" type="checkbox" checked="true" /> Use IPv6 <span class="text-muted">(server side default)</span>
                             </label>
                         </div>
+
+</div>
+<div class="col-sm-12 col-md-6">
+
+<p>Undelegated NS Record</p>
+
+  <div class="form-group">
+    <input type="text" class="form-control" placeholder="ns.zone.tld [IP-address]">
+  </div>
+
+<button type="submit" class="btn btn-primary">+ NS Record</button>
+
+<p>Undelegated DS Record</p>
+
+  <div class="form-group">
+    <input type="text" class="form-control" placeholder="keytag algorithm type digest">
+  </div>
+
+<button type="submit" class="btn btn-primary">+ DS Record</button>
+
+</div>
+</div>
+</div>
+
                     </form>
+
                 </div>
 
             </div>
@@ -201,6 +234,9 @@
         else {
             document.getElementById('jquery-alert').style.display = 'block';
         }
+
+$('.options').toggle();
+
     </script>
 
 </body>
