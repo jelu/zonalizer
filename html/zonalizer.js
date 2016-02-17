@@ -488,13 +488,26 @@
                     $('<td style="text-align: left;"></td>').text(this.message ? this.message.replace(/,(?! )/g, ', ').replace(/;(?! )/g, '; ') : '...').appendTo(tr);
 
                     tr.appendTo($('tbody'));
-
-                    $('.nav-pills > li:eq(2) .badge').text(info);
-                    $('.nav-pills > li:eq(3) .badge').text(notice);
-                    $('.nav-pills > li:eq(4) .badge').text(warning);
-                    $('.nav-pills > li:eq(5) .badge').text(error);
-                    $('.nav-pills > li:eq(6) .badge').text(critical);
                 });
+
+                $('.nav-pills > li:eq(2) .badge').text(info);
+                $('.nav-pills > li:eq(3) .badge').text(notice);
+                $('.nav-pills > li:eq(4) .badge').text(warning);
+                $('.nav-pills > li:eq(5) .badge').text(error);
+                $('.nav-pills > li:eq(6) .badge').text(critical);
+
+                if ( critical ) {
+                    zonalizer.analyze.toggle( 'critical' );
+                }
+                if ( error ) {
+                    zonalizer.analyze.toggle( 'error' );
+                }
+                if ( warning ) {
+                    zonalizer.analyze.toggle( 'warning' );
+                }
+                if ( notice && !( critical || error || warning ) ) {
+                    zonalizer.analyze.toggle( 'notice' );
+                }
             },
             switchLang: function (lang) {
                 if (!zonalizer.analyze._id || lang == zonalizer.analyze._lang) {
