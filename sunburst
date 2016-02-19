@@ -75,7 +75,7 @@ foreach my $row ( @{ $list->{rows} } ) {
     $ref->{ summary } = $row->{ value };
 }
 
-delete $d{ children }->{ 'arpa.' };
+delete $d{ children }->{ arpa };
 
 my @obj = ( \%d );
 foreach ( @obj ) {
