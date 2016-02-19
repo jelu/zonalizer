@@ -107,6 +107,7 @@ var svg = d3.select("#svg").append("svg")
     .attr("transform", "translate(" + width / 2 + "," + (height / 2) + ")");
 
 var partition = d3.layout.partition()
+    .sort(null)
     .value(function(d) { return 1; });
 
 var arc = d3.svg.arc()
@@ -125,11 +126,12 @@ d3.json("sunburst.json", function(error, root) {
     .enter().append("path")
       .attr("d", arc)
       .style("stroke", "#fff")
+      .style('stroke-width', '0')
       .style("fill", function(d) { return d.depth ? color((d.children ? d : d.parent).name) : null; })
       .on("click", click)
       .each(stash);
 
-  path.append("title")
+   path.append("title")
       .text(function(d) { return d.name });
 
     $('.btn:eq(0)').click(function () {

@@ -13,7 +13,7 @@ GetOptions(
     'schema'     => \$schema,
 );
 
-my $JSON = JSON->new->utf8->pretty;
+my $JSON = JSON->new->utf8;
 my $db   = couchdb( $ARGV[0] );
 
 if ( $schema ) {
@@ -74,6 +74,8 @@ foreach my $row ( @{ $list->{rows} } ) {
     $ref->{ name } = $row->{ key };
     $ref->{ summary } = $row->{ value };
 }
+
+delete $d{'arpa.'};
 
 my @obj = ( \%d );
 foreach ( @obj ) {
