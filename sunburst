@@ -5,9 +5,44 @@ use common::sense;
 use AnyEvent::CouchDB;
 use AnyEvent::HTTP;
 use JSON;
+use Getopt::Long;
+
+my $schema = 0;
+
+GetOptions(
+    'schema'     => \$schema,
+);
 
 my $JSON = JSON->new->utf8->pretty;
 my $db   = couchdb( $ARGV[0] );
+
+if ( $schema ) {
+    foreach ( keys %{ schema() } ) {
+        my $doc;
+
+        eval { $doc = req( GET => $_ )->recv; };
+
+        unless ( $@ ) {
+            $doc = $JSON->decode( $doc );
+            unless ( ref( $doc ) eq 'HASH' and $doc->{_rev} ) {
+                die 'Unexpected return or missing data from CouchDB when reading design for ' . $_;
+            }
+            req( DELETE => $_ . '?rev=' . $doc->{_rev} )->recv;
+        }
+        undef $@;
+
+        req(
+            PUT => $_,
+            $JSON->encode(
+                {
+                    %{ schema()->{$_} },
+                    _id => $_
+                }
+            )
+        )->recv;
+    }
+    exit;
+}
 
 my $list = req( GET => '_design/sunburst/_view/all?group=true' )->recv;
 $list = $JSON->decode( $list );
@@ -78,4 +113,41 @@ sub req {
     );
 
     return $cv;
+}
+
+sub schema {
+    return {
+        '_design/sunburst' => {
+            views => {
+                all => {
+                    map => '
+function (doc) {
+    if (doc.type == "analyze") {
+        emit(doc.fqdn, doc.summary);
+    }
+}
+',
+                    reduce => '
+function (fqdn, values) {
+    var summary = {
+        notice: 0,
+        warning: 0,
+        error: 0,
+        critical: 0
+    };
+
+    for ( var i = 0; i < values.length; i++ ) {
+        summary.notice += values[i].notice;
+        summary.warning += values[i].warning;
+        summary.error += values[i].error;
+        summary.critical += values[i].critical;
+    }
+
+    return summary;
+}
+'
+                }
+            }
+        }
+    };
 }
