@@ -1,0 +1,81 @@
+#!/usr/bin/env perl
+
+use common::sense;
+
+use AnyEvent::CouchDB;
+use AnyEvent::HTTP;
+use JSON;
+
+my $JSON = JSON->new->utf8->pretty;
+my $db   = couchdb( $ARGV[0] );
+
+my $list = req( GET => '_design/sunburst/_view/all?group=true' )->recv;
+$list = $JSON->decode( $list );
+
+my %d = ( name => 'root' );
+
+foreach my $row ( @{ $list->{rows} } ) {
+    my $key = $row->{ key };
+    $key =~ s/\.$//o;
+
+    my $ref = \%d;
+    my $name;
+    foreach ( reverse( split( /\./o, $key ) ) ) {
+        $name = $_ . '.' . $name;
+        unless ( exists $ref->{ children }->{ $_ } ) {
+            $ref->{ children }->{ $_ } = {
+                name => $name,
+                summary => {
+                    notice => 0,
+                    warning => 0,
+                    error => 0,
+                    critical => 0
+                }
+            };
+        }
+        $ref = $ref->{ children }->{ $_ };
+    }
+
+    $ref->{ name } = $row->{ key };
+    $ref->{ summary } = $row->{ value };
+}
+
+my @obj = ( \%d );
+foreach ( @obj ) {
+    if ( exists $_->{ children } ) {
+        push( @obj, values $_->{ children } );
+        $_->{ children } = [ values %{ $_->{ children } } ];
+    }
+}
+
+say $JSON->encode( \%d );
+
+exit;
+
+sub req {
+    my ( $method, $path, $body ) = @_;
+    my $cv = AnyEvent->condvar;
+
+    http_request(
+        $method => $db->uri . $path,
+        headers => $db->_build_headers(
+            {
+                $method eq 'POST' || $method eq 'PUT'
+                ? ( 'Content-Type' => 'application/json' )
+                : (),
+            }
+        ),
+        body => $body,
+        sub {
+            my ( $body, $headers ) = @_;
+            if ( $headers->{Status} >= 200 and $headers->{Status} < 400 ) {
+                $cv->send( $body );
+            }
+            else {
+                $cv->croak( $db->uri . $path . ': ' . $headers->{Status} . ' - ' . $headers->{Reason} . ' - ' . $headers->{URL} );
+            }
+        }
+    );
+
+    return $cv;
+}

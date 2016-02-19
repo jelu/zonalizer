@@ -1086,6 +1086,9 @@
                         zonalizer.browse.limit($(this).text());
                     });
                 });
+            },
+            visualize: function () {
+                $('.alert').hide();
             }
         }
     };
