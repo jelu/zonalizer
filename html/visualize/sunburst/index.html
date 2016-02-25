@@ -60,6 +60,9 @@
         </div>
 
         <p>
+            Select measurements:
+        </p>
+        <p>
             <button class="btn btn-default">Count</button>
             <button class="btn btn-primary">Total Score</button>
             <button class="btn btn-danger">Critical</button>
@@ -73,6 +76,10 @@
     <div class="container">
         <div id="svg" class="text-center">
         </div>
+
+        <p>
+            Click on colors to zoom in. Hover to get FQDN. Click on center to zoom out.
+        </p>
     </div>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
@@ -127,7 +134,7 @@ d3.json("sunburst.json", function(error, root) {
       .attr("d", arc)
       .style("stroke", "#fff")
       .style('stroke-width', '0')
-      .style("fill", function(d) { return d.depth ? color((d.children ? d : d.parent).name) : null; })
+      .style("fill", function(d) { return d.depth ? color((d.children ? d : d.parent).name) : '#222222'; })
       .on("click", click)
       .each(stash);
 
