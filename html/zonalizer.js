@@ -1088,6 +1088,11 @@
                 });
 
                 $('[data-toggle="tooltip"]').tooltip();
+
+                if (window.location.search.match(/^\?.+$/)) {
+                    $('input:eq(0)').val(window.location.search.substr(1));
+                    $('form:eq(0)').submit();
+                }
             },
             visualize: function () {
                 $('.alert').hide();
