@@ -1066,7 +1066,6 @@
             browse: function () {
                 $('.alert').hide();
                 zonalizer.browse.init();
-                zonalizer.browse.load();
 
                 $('form:eq(0)').submit(function (event) {
                     var fqdn = $('input:eq(0)').val();
@@ -1092,6 +1091,9 @@
                 if (window.location.search.match(/^\?.+$/)) {
                     $('input:eq(0)').val(window.location.search.substr(1));
                     $('form:eq(0)').submit();
+                }
+                else {
+                    zonalizer.browse.load();
                 }
             },
             visualize: function () {
