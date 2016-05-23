@@ -1,0 +1,115 @@
+#!/usr/bin/env perl
+
+use common::sense;
+
+use EV;
+use AnyEvent;
+use Log::Log4perl;
+use Lim::Plugin::Zonalizer;
+use DB_File;
+use HTTP::Status;
+use AnyEvent::HTTP;
+use Lim::RPC::TLS;
+
+use Data::Dumper;
+
+STDOUT->autoflush(1);
+
+Log::Log4perl->init( \q(
+log4perl.logger                   = DEBUG, Screen
+log4perl.appender.Screen          = Log::Log4perl::Appender::Screen
+log4perl.appender.Screen.stderr   = 0
+log4perl.appender.Screen.layout   = Log::Log4perl::Layout::PatternLayout
+log4perl.appender.Screen.layout.ConversionPattern = %d %F [%L] %p: %m%n
+) );
+my $logger = Log::Log4perl->get_logger;
+
+Lim::LoadConfig($ARGV[0]);
+Lim::UpdateConfig;
+
+Lim::Config->{zonalizer}->{iana_interval} ||= 86400;
+
+my ($state, %state, %tld, $ongoing);
+$state = tie %state, 'DB_File', $ARGV[1];
+
+my $cv = AnyEvent->condvar;
+my ( $update_w, $read_w );
+
+$update_w = AnyEvent->timer( after => 1000, interval => Lim::Config->{zonalizer}->{iana_interval}, cb => sub {
+    my $req; $req = http_get Lim::Config->{zonalizer}->{iana_url}, sub {
+        my ($body, $hdr) = @_;
+
+        unless ($hdr->{Status} == 200) {
+            Lim::ERR and $logger->error('Failed to get ', Lim::Config->{zonalizer}->{iana_url}, ' [', $hdr->{Status}, ( defined $hdr->{'content-type'} ? ' / '.$hdr->{'content-type'} : () ), ']');
+            undef $req;
+            return;
+        }
+
+        my ( $tlds, $type, $company, $last ) = ( 0, 0, 0 );
+
+        foreach (split(/[\r\n]+/omg, $body)) {
+            if ($type and /td>([^<]+)/o) {
+                $tld{$last}->{type} = $type;
+                $type = 0;
+                $company = 1;
+                next;
+            }
+            if ($company and /td>([^<]+)/o) {
+                $tld{$last}->{company} = $company;
+                $company = 0;
+                $tlds++;
+                next;
+            }
+            if (/href="\/domains\/root\/db\/([^\.]+)\.html">([^<]+)/o) {
+                $tld{$1} = {
+                    idn => $1,
+                    tld => $2
+                };
+                $last = $1;
+                $type = 1;
+                next;
+            }
+        }
+
+        Lim::DEBUG and $logger->debug($tlds, ' TLDs found');
+
+        undef $req;
+    };
+});
+
+$read_w = AnyEvent->timer( after => 5, interval => 30, cb => sub {
+    if ( $ongoing ) {
+        return;
+    }
+
+    $ongoing = 1;
+    Lim::Plugin::Zonalizer->Client->ReadAnalysis({
+        version => 1,
+        sort => 'created',
+        direction => 'ascending'
+    },
+    sub {
+        my ( $c, $r ) = @_;
+
+        $ongoing = 0;
+
+        unless ( $c->Successful ) {
+            Lim::ERR and $logger->error('Zonalizer error while reading: ', $c->Error->toString);
+            return;
+        }
+
+say Dumper($r);
+
+    },
+    {
+        uri => Lim::Config->{zonalizer}->{uri}
+    });
+});
+
+sub fatal {
+    $logger->fatal(@_);
+    $update_w = undef;
+    $cv->send;
+}
+
+$cv->recv;
