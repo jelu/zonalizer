@@ -28,6 +28,7 @@ Lim::LoadConfig($ARGV[0]);
 Lim::UpdateConfig;
 
 Lim::Config->{zonalizer}->{iana_interval} ||= 86400;
+Lim::Config->{zonalizer}->{limit} ||= 50;
 
 my ($state, %state, %tld, $ongoing, $after);
 $state = tie %state, 'DB_File', $ARGV[1];
@@ -52,12 +53,14 @@ $update_w = AnyEvent->timer( after => 0, interval => Lim::Config->{zonalizer}->{
         foreach (split(/[\r\n]+/omg, $body)) {
             if ($type and /td>([^<]+)/o) {
                 $tld{$last}->{type} = $1;
+                $tld{$last}->{type} =~ s/[\s,]/_/go;
                 $type = 0;
                 $company = 1;
                 next;
             }
             if ($company and /td>([^<]+)/o) {
                 $tld{$last}->{company} = $1;
+                $tld{$last}->{company} =~ s/[\s,]/_/go;
                 $company = 0;
                 $tlds++;
                 next;
@@ -92,6 +95,7 @@ $read_w = AnyEvent->timer( after => 5, interval => 1, cb => sub {
     $ongoing = 1;
     Lim::Plugin::Zonalizer->Client->ReadAnalysis({
         version => 1,
+        limit => Lim::Config->{zonalizer}->{limit},
         sort => 'created',
         direction => 'ascending',
         ( $after ? ( after => $after ) : ())
@@ -114,13 +118,13 @@ $read_w = AnyEvent->timer( after => 5, interval => 1, cb => sub {
                 next;
             }
 
-            my $fqdn = 'fqdn='.$analyze->{fqdn};
+            my $tags = 'fqdn='.$analyze->{fqdn}.',type='.$tld{$analyze->{fqdn}}->{type}.',company='.$tld{$analyze->{fqdn}}->{company};
             my $time = $analyze->{created}.'000000000';
             push(@influx,
-                'critical,'.$fqdn.' value='.$analyze->{summary}->{critical}.' '.$time,
-                'error,'.$fqdn.' value='.$analyze->{summary}->{error}.' '.$time,
-                'warning,'.$fqdn.' value='.$analyze->{summary}->{warning}.' '.$time,
-                'notice,'.$fqdn.' value='.$analyze->{summary}->{notice}.' '.$time
+                'critical,'.$tags.' value='.$analyze->{summary}->{critical}.' '.$time,
+                'error,'.$tags.' value='.$analyze->{summary}->{error}.' '.$time,
+                'warning,'.$tags.' value='.$analyze->{summary}->{warning}.' '.$time,
+                'notice,'.$tags.' value='.$analyze->{summary}->{notice}.' '.$time
             );
         }
 

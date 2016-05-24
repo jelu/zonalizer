@@ -1,0 +1,498 @@
+#!/usr/bin/env perl
+
+use common::sense;
+
+use EV;
+use AnyEvent;
+use Log::Log4perl;
+use Lim::Plugin::Zonalizer;
+use Net::Twitter;
+use DB_File;
+use HTTP::Status;
+
+use Data::Dumper;
+
+STDOUT->autoflush(1);
+
+Log::Log4perl->init( \q(
+log4perl.logger                   = DEBUG, Screen
+log4perl.appender.Screen          = Log::Log4perl::Appender::Screen
+log4perl.appender.Screen.stderr   = 0
+log4perl.appender.Screen.layout   = Log::Log4perl::Layout::PatternLayout
+log4perl.appender.Screen.layout.ConversionPattern = %d %F [%L] %p: %m%n
+) );
+my $logger = Log::Log4perl->get_logger;
+
+# twitter
+
+Lim::LoadConfig($ARGV[0]);
+Lim::UpdateConfig;
+
+my ($state, %state);
+$state = tie %state, 'DB_File', $ARGV[1];
+
+unless ( defined $state{queue} ) {
+    $state{queue} = '';
+}
+unless ( $state{ongoing} ) {
+    delete $state{ongoing};
+}
+
+# TEST
+unless ( $state{since_id} ) {
+    $state{since_id} = '661612336579485699',
+}
+
+my $twitter = Net::Twitter->new(
+    %{ Lim::Config->{zonalizer} },
+    traits => [qw/API::RESTv1_1/],
+    ssl => 1
+);
+
+# iana
+
+Lim::LoadConfig($ARGV[2]);
+Lim::UpdateConfig;
+
+Lim::Config->{zonalizer}->{iana_interval} ||= 86400;
+Lim::Config->{zonalizer}->{next_interval} ||= 60;
+
+my ($state2, %state2, %tld);
+$state2 = tie %state2, 'DB_File', $ARGV[3];
+
+unless ( defined $state2{queue} ) {
+    $state2{queue} = '';
+}
+unless ( $state2{ongoing} ) {
+    delete $state2{ongoing};
+}
+
+# twitter
+
+my $cv = AnyEvent->condvar;
+
+my ( $ongoing, $ongoing_w, $queue_w, $diffroot_w, $mention_w );
+
+$ongoing_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
+    unless ( $state{ongoing} ) {
+        return;
+    }
+    if ( $ongoing ) {
+        return;
+    }
+
+    $ongoing = 1;
+    Lim::Plugin::Zonalizer->Client->ReadAnalyze({
+        version => 1,
+        id => $state{ongoing},
+        results => 0
+    },
+    sub {
+        my ( $c, $r ) = @_;
+
+        $ongoing = 0;
+
+        unless ( $c->Successful ) {
+            Lim::ERR and $logger->error('Zonalizer error while analyzing ', $state{dn}, ': ', $c->Error->toString);
+            delete $state{ongoing};
+            $state->sync;
+            return;
+        }
+
+        if ( $r->{progress} < 100 ) {
+            return;
+        }
+
+        Lim::INFO and $logger->info($state{ongoing}, ' ', $state{dn}, ' finished ', $r->{summary}->{notice}, '/', $r->{summary}->{warning}, '/', $r->{summary}->{error}, '/', $r->{summary}->{critical});
+
+        eval {
+            my $status =
+                $state{dn} . ' '
+                . ( $r->{summary}->{critical} ? 'CRITICAL' :
+                    ( $r->{summary}->{error} ? 'ERROR' :
+                        ( $r->{summary}->{warning} ? 'WARNING' : 'OK' )))
+                . ' ' . Lim::Config->{zonalizer}->{base_url} . '?' . $state{ongoing};
+
+            if ( $state{reply} eq 'c' ) {
+                $twitter->update(
+                    $status
+                    . ' https://twitter.com/' . $state{screen_name} . '/status/' . $state{tweet_id}
+                );
+            }
+            elsif ( $state{reply} eq 'm' ) {
+                $twitter->update({
+                    status => '@' . $state{screen_name} . ' ' . $status,
+                    in_reply_to_status_id => $state{tweet_id}
+                });
+            }
+        };
+        if ( $@ ) {
+            Lim::ERR and $logger->error('Net::Twitter error on update: ', $@);
+        }
+
+        delete $state{ongoing};
+        $state->sync;
+    },
+    {
+        uri => Lim::Config->{zonalizer}->{uri}
+    });
+});
+
+$queue_w = AnyEvent->timer( after => 2, interval => 10, cb => sub {
+    if ( defined $state{ongoing} ) {
+        return;
+    }
+    unless ( $state{queue} ) {
+        return;
+    }
+
+    $state{queue} =~ s/^(\S+)\s*//o;
+    my $queue_entry = $1;
+    my ($reply, $screen_name, $tweet_id, $dn) = split(/:/o, $queue_entry);
+
+    unless ( $reply and $screen_name and $tweet_id and $dn ) {
+        fatal('Invalid queue entry: ', $queue_entry);
+        return;
+    }
+
+    $state{reply} = $reply;
+    $state{screen_name} = $screen_name;
+    $state{tweet_id} = $tweet_id;
+    $state{dn} = $dn;
+    $state{ongoing} = '';
+    $state->sync;
+
+    Lim::Plugin::Zonalizer->Client->CreateAnalyze({
+        version => 1,
+        fqdn => $dn
+    },
+    sub {
+        my ( $c, $r ) = @_;
+
+        if ( $c->Successful ) {
+            Lim::INFO and $logger->info('Analyzing ', $dn, ' (from @', $screen_name, ', id ', $r->{id}, ')');
+            $state{ongoing} = $r->{id};
+            $state->sync;
+            return;
+        }
+
+        if ( $c->Error->code == HTTP::Status::HTTP_SERVICE_UNAVAILABLE ) {
+            $state{queue} = $queue_entry . ( $state{queue} ? ' ' . $state{queue} : '' );
+            $state{ongoing} = undef;
+            $state->sync;
+            return;
+        }
+
+        Lim::ERR and $logger->error('Failed to queue ', $dn, ' to zonalizer');
+        $state{ongoing} = undef;
+        $state->sync;
+    },
+    {
+        uri => Lim::Config->{zonalizer}->{uri}
+    });
+});
+
+$diffroot_w = AnyEvent->timer( after => 1, interval => 600, cb => sub {
+    my $tweets;
+
+    unless ( $state{diffroot_id} ) {
+        $state{diffroot_id} = 0;
+    }
+    eval {
+        $tweets = $twitter->user_timeline({
+            screen_name => 'diffroot',
+            count => 50,
+            trim_user => 1,
+            exclude_replies => 1,
+            $state{diffroot_id} ? ( since_id => $state{diffroot_id} ) : (),
+        });
+    };
+    if ( $@ ) {
+        Lim::ERR and $logger->error('Net::Twitter error getting tweets: ', $@);
+        return;
+    }
+
+    unless ( ref($tweets) eq 'ARRAY' ) {
+        fatal('invalid response from twitter->user_timeline');
+        return;
+    }
+    foreach my $tweet (@$tweets) {
+        unless ( ref($tweet) eq 'HASH' and $tweet->{id} and $tweet->{text} ) {
+            fatal('invalid response from twitter->user_timeline');
+            return;
+        }
+    }
+
+    my %dn;
+    foreach my $tweet (@$tweets) {
+        utf8::encode($tweet->{text});
+        Lim::DEBUG and $logger->debug('@diffroot: ', $tweet->{id}, ' ', $tweet->{text});
+
+        if ( $tweet->{id} > $state{diffroot_id} ) {
+            $state{diffroot_id} = $tweet->{id};
+        }
+
+        if ( $tweet->{text} =~ /^(?:add|new)\s+([a-z0-9-]+)/o ) {
+            $dn{$1} ||= $tweet->{id};
+        }
+    }
+
+    if ( %dn ) {
+        Lim::INFO and $logger->info('Queueing ', join(', ', keys %dn));
+        $state{queue} .= ( $state{queue} ? ' ' : '' ).join( ' ', map { join(':', 'c', 'diffroot', $dn{$_}, $_ ) } keys %dn );
+        $state->sync;
+    }
+});
+
+$mention_w = AnyEvent->timer( after => 1, interval => 60, cb => sub {
+    my $tweets;
+
+    unless ( $state{since_id} ) {
+        $state{since_id} = 0;
+    }
+    eval {
+        $tweets = $twitter->mentions_timeline({
+            count => 20,
+            $state{since_id} ? ( since_id => $state{since_id} ) : (),
+        });
+    };
+    if ( $@ ) {
+        Lim::ERR and $logger->error('Net::Twitter error getting tweets: ', $@);
+        return;
+    }
+
+    unless ( ref($tweets) eq 'ARRAY' ) {
+        fatal('invalid response from twitter->mentions_timeline');
+        return;
+    }
+    foreach my $tweet (@$tweets) {
+        unless ( ref($tweet) eq 'HASH'
+            and $tweet->{id}
+            and $tweet->{text}
+            and ref($tweet->{entities}) eq 'HASH'
+            and ref($tweet->{user}) eq 'HASH'
+            and $tweet->{user}->{screen_name} )
+        {
+            fatal('invalid response from twitter->user_timeline');
+            return;
+        }
+    }
+
+    my %dn;
+    foreach my $tweet (@$tweets) {
+        utf8::encode($tweet->{text});
+        Lim::DEBUG and $logger->debug('@', $tweet->{user}->{screen_name}, ': ', $tweet->{id}, ' ', $tweet->{text});
+
+        if ( $tweet->{id} > $state{since_id} ) {
+            $state{since_id} = $tweet->{id};
+        }
+
+        if ( $tweet->{text} =~ /^\@zonalizer\s+analyze\s+(\S+)/o ) {
+            my $dn = $1;
+
+            if ( $dn =~ /^([a-z0-9\.-]+)$/o ) {
+                $dn{ $tweet->{user}->{screen_name} .':'. $1 } ||= {
+                    screen_name => $tweet->{user}->{screen_name},
+                    dn => $1,
+                    id => $tweet->{id}
+                };
+            }
+            elsif ( ref($tweet->{entities}->{urls}) eq 'ARRAY'
+                and scalar @{$tweet->{entities}->{urls}}
+                and ref($tweet->{entities}->{urls}->[0]) eq 'HASH'
+                and $tweet->{entities}->{urls}->[0]->{display_url} =~ /^[a-z0-9\.-]+$/o )
+            {
+                $dn{ $tweet->{user}->{screen_name} .':'. $tweet->{entities}->{urls}->[0]->{display_url} } ||= {
+                    screen_name => $tweet->{user}->{screen_name},
+                    dn => $tweet->{entities}->{urls}->[0]->{display_url},
+                    id => $tweet->{id}
+                };
+            }
+        }
+    }
+
+    if ( %dn ) {
+        Lim::INFO and $logger->info('Queueing ', join(', ', keys %dn));
+        $state{queue} .= ( $state{queue} ? ' ' : '' ).join( ' ', map { join(':', 'm', $_->{screen_name}, $_->{id}, $_->{dn} ) } values %dn );
+        $state->sync;
+    }
+});
+
+# iana
+
+my ( $update_w2, $ongoing, $ongoing_w2, $queue_w2, $next_w2 );
+
+$update_w2 = AnyEvent->timer( after => 1, interval => Lim::Config->{zonalizer}->{iana_interval}, cb => sub {
+    my $req; $req = http_get Lim::Config->{zonalizer}->{iana_url}, sub {
+        my ($body, $hdr) = @_;
+
+        unless ($hdr->{Status} == 200 and defined $hdr->{'content-type'} and $hdr->{'content-type'} =~ /text\/plain/o) {
+            Lim::ERR and $logger->error('Failed to get ', Lim::Config->{zonalizer}->{iana_url}, ' [', $hdr->{Status}, ( defined $hdr->{'content-type'} ? ' / '.$hdr->{'content-type'} : () ), ']');
+            undef $req;
+            return;
+        }
+
+        my ($en, $dis, $last, $first) = (0,0);
+
+        delete $tld{_};
+        foreach (values %tld) {
+            $_->{en} = 0;
+        }
+
+        foreach (split(/[\r\n]+/omg, $body)) {
+            unless (/^[A-Z0-9-]+$/o) {
+                next;
+            }
+
+            my $tld = lc($_);
+            $en++;
+
+            $tld{$tld} = {
+                tld => $tld,
+                en => 1,
+                $last ? ( prev => $last->{tld} ) : ()
+            };
+            unless ( $first ) {
+                $first = $tld{$tld};
+            }
+            if ( $last ) {
+                $last->{next} = $tld;
+            }
+
+            $last = $tld{$tld};
+        }
+
+        foreach (values %tld) {
+            unless ($_->{en}) {
+                $dis++;
+            }
+        }
+
+        if ( $first ) {
+            $tld{_} = $first;
+        }
+
+        Lim::INFO and $logger->info('TLDs received, ', $en, ' enabled and ', $dis, ' disabled.');
+
+        undef $req;
+    };
+});
+
+$ongoing_w2 = AnyEvent->timer( after => 2, interval => 5, cb => sub {
+    unless ( $state2{ongoing} ) {
+        return;
+    }
+    if ( $ongoing ) {
+        return;
+    }
+
+    $ongoing = 1;
+    Lim::Plugin::Zonalizer->Client->ReadAnalyze({
+        version => 1,
+        id => $state2{ongoing},
+        results => 0
+    },
+    sub {
+        my ( $c, $r ) = @_;
+
+        $ongoing = 0;
+
+        unless ( $c->Successful ) {
+            Lim::ERR and $logger->error('Zonalizer error while analyzing ', $state2{dn}, ': ', $c->Error->toString);
+            delete $state2{ongoing};
+            $state2->sync;
+            return;
+        }
+
+        if ( $r->{progress} < 100 ) {
+            Lim::INFO and $logger->info($state2{dn}, ' at ', $r->{progress}, '%');
+            return;
+        }
+
+        Lim::INFO and $logger->info($state2{ongoing}, ' ', $state2{dn}, ' finished ', $r->{summary}->{notice}, '/', $r->{summary}->{warning}, '/', $r->{summary}->{error}, '/', $r->{summary}->{critical});
+
+        delete $state2{ongoing};
+        $state2->sync;
+    },
+    {
+        uri => Lim::Config->{zonalizer}->{uri}
+    });
+});
+
+$queue_w2 = AnyEvent->timer( after => 5, interval => 5, cb => sub {
+    if ( defined $state2{ongoing} ) {
+        return;
+    }
+    unless ( $state2{queue} ) {
+        return;
+    }
+
+    $state2{queue} =~ s/^(\S+)\s*//o;
+    my $queue_entry = $1;
+    my $dn = $queue_entry;
+
+    $state2{dn} = $dn;
+    $state2{ongoing} = '';
+    $state2->sync;
+
+    Lim::Plugin::Zonalizer->Client->CreateAnalyze({
+        version => 1,
+        fqdn => $dn
+    },
+    sub {
+        my ( $c, $r ) = @_;
+
+        if ( $c->Successful ) {
+            Lim::INFO and $logger->info('Analyzing ', $dn, ' ', $r->{id});
+            $state2{ongoing} = $r->{id};
+            $state2->sync;
+            return;
+        }
+
+        if ( $c->Error->code == HTTP::Status::HTTP_SERVICE_UNAVAILABLE ) {
+            Lim::INFO and $logger->info('Queue full, retrying');
+            $state2{queue} = $queue_entry . ( $state2{queue} ? ' ' . $state2{queue} : '' );
+            delete $state2{ongoing};
+            $state2->sync;
+            return;
+        }
+
+        Lim::ERR and $logger->error('Failed to queue ', $dn, ' to zonalizer: ', $c->Error->toString);
+        delete $state2{ongoing};
+        $state2->sync;
+    },
+    {
+        uri => Lim::Config->{zonalizer}->{uri}
+    });
+});
+
+$next_w2 = AnyEvent->timer( after => 3, interval => Lim::Config->{zonalizer}->{next_interval}, cb => sub {
+    if ( $state2{queue} or $state2{ongoing} ) {
+        return;
+    }
+
+    if ( $state2{tld} ) {
+        Lim::INFO and $logger->info( $state2{tld}, ' => ', $tld{$state2{tld}}->{next} ? $tld{$state2{tld}}->{next} : '_' );
+        $state2{tld} = $tld{$state2{tld}}->{next};
+    }
+
+    unless ( $state2{tld} ) {
+        unless ( $tld{_} ) {
+            return;
+        }
+
+        $state2{tld} = $tld{_}->{tld};
+        Lim::INFO and $logger->info( 'start ', $state2{tld} );
+    }
+
+    $state2{queue} = $state2{tld};
+});
+
+sub fatal {
+    $logger->fatal(@_);
+    $ongoing_w = $queue_w = $diffroot_w = $mention_w = undef;
+    $update_w2 = $ongoing_w2 = $queue_w2 = $next_w2 = undef;
+    $cv->send;
+}
+
+$cv->recv;
