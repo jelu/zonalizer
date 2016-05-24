@@ -5,7 +5,7 @@ use common::sense;
 use EV;
 use AnyEvent;
 use Log::Log4perl;
-use Lim::Plugin::Zonalizer;
+use Lim::Plugin::Zonalizer qw(:status);
 use DB_File;
 use HTTP::Status;
 use AnyEvent::HTTP;
@@ -28,10 +28,12 @@ Lim::LoadConfig($ARGV[0]);
 Lim::UpdateConfig;
 
 Lim::Config->{zonalizer}->{iana_interval} ||= 86400;
-Lim::Config->{zonalizer}->{limit} ||= 50;
+Lim::Config->{zonalizer}->{limit} ||= 10;
 
-my ($state, %state, %tld, $ongoing, $after);
+my ($state, %state, %tld, $ongoing);
 $state = tie %state, 'DB_File', $ARGV[1];
+
+#$state{after} = '1464085879:l2ReQ74RSnCtYNrI51-czQ';
 
 my $cv = AnyEvent->condvar;
 my ( $update_w, $read_w );
@@ -82,33 +84,61 @@ $update_w = AnyEvent->timer( after => 0, interval => Lim::Config->{zonalizer}->{
     };
 });
 
-$read_w = AnyEvent->timer( after => 5, interval => 1, cb => sub {
-    if ( $ongoing ) {
-        return;
-    }
+$read_w = AnyEvent->timer( after => 2, cb => \&fetch_analysis );
+
+sub fetch_analysis {
     unless ( scalar %tld ) {
+        $read_w = AnyEvent->timer( after => 2, cb => \&fetch_analysis );
         return;
     }
 
-    Lim::DEBUG and $logger->debug('Fetch results', ($after ? ' after '.$after : ''));
+    Lim::DEBUG and $logger->debug('Fetching results', ($state{after} ? ' after '.$state{after} : ''));
 
-    $ongoing = 1;
     Lim::Plugin::Zonalizer->Client->ReadAnalysis({
         version => 1,
         limit => Lim::Config->{zonalizer}->{limit},
         sort => 'created',
         direction => 'ascending',
-        ( $after ? ( after => $after ) : ())
+        ( $state{after} ? ( after => $state{after} ) : ())
     },
     sub {
         my ( $c, $r ) = @_;
 
         unless ( $c->Successful ) {
             Lim::ERR and $logger->error('Zonalizer error while reading: ', $c->Error->toString);
+            $read_w = AnyEvent->timer( after => 10, cb => \&fetch_analysis );
             return;
         }
 
         unless ( exists $r->{analysis} ) {
+            Lim::ERR and $logger->error('Bad data!');
+            $read_w = AnyEvent->timer( after => 10, cb => \&fetch_analysis );
+            return;
+        }
+
+        unless ( ref($r->{paging}) eq 'HASH' and ref($r->{paging}->{cursors}) eq 'HASH' ) {
+            Lim::DEBUG and $logger->debug('No cursors or data');
+            $read_w = AnyEvent->timer( after => 60, cb => \&fetch_analysis );
+            return;
+        }
+
+        my $unfinished = 0;
+        foreach my $analyze ( ref($r->{analysis}) eq 'ARRAY' ? @{$r->{analysis}} : $r->{analysis} ) {
+            unless ( exists $tld{$analyze->{fqdn}} ) {
+                next;
+            }
+            if ( $analyze->{status} eq STATUS_RESERVED
+                or $analyze->{status} eq STATUS_QUEUED
+                or $analyze->{status} eq STATUS_ANALYZING )
+            {
+                $unfinished = 1;
+                last;
+            }
+        }
+
+        if ( $unfinished ) {
+            Lim::DEBUG and $logger->debug('Not everything done, retrying...');
+            $read_w = AnyEvent->timer( after => 30, cb => \&fetch_analysis );
             return;
         }
 
@@ -128,39 +158,31 @@ $read_w = AnyEvent->timer( after => 5, interval => 1, cb => sub {
             );
         }
 
-        if ( ref($r->{paging}) eq 'HASH' and ref($r->{paging}->{cursors}) ) {
-            $after = $r->{paging}->{cursors}->{after};
-        }
-        else {
-            $after = undef;
-        }
+        Lim::DEBUG and $logger->debug(scalar @influx, ' new metrics from ', scalar @{$r->{analysis}}, ' analysis');
 
-        if ( @influx ) {
-            my $req; $req = http_post Lim::Config->{zonalizer}->{influx_url}, join("\n", @influx), sub {
-                my ($body, $hdr) = @_;
+        my $req; $req = http_post Lim::Config->{zonalizer}->{influx_url}, join("\n", @influx), sub {
+            my ($body, $hdr) = @_;
 
-                $ongoing = 0;
+            unless ($hdr->{Status} >= 200 and $hdr->{Status} < 300) {
+                Lim::ERR and $logger->error('Failed to store metrics [', $hdr->{Status}, ']');
+            }
 
-                unless ($hdr->{Status} >= 200 and $hdr->{Status} < 300) {
-                    Lim::ERR and $logger->error('Failed to store metrics [', $hdr->{Status}, ']');
-                }
+            $state{after} = $r->{paging}->{cursors}->{after};
+            $state->sync;
+            $read_w = AnyEvent->timer( after => 1, cb => \&fetch_analysis );
 
-                undef $req;
-                return;
-            };
+            undef $req;
             return;
-        }
-
-        $ongoing = 0;
+        };
     },
     {
         uri => Lim::Config->{zonalizer}->{uri}
     });
-});
+}
 
 sub fatal {
     $logger->fatal(@_);
-    $update_w = undef;
+    $update_w = $read_w = undef;
     $cv->send;
 }
 
