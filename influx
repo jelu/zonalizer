@@ -37,6 +37,8 @@ $state = tie %state, 'DB_File', $ARGV[1];
 
 my $cv = AnyEvent->condvar;
 
+my ( $update_w, $read_w );
+
 my @watchers = (
     AnyEvent->signal(signal => "HUP", cb => sub {
     }),
@@ -70,8 +72,6 @@ my @watchers = (
         }
     })
 );
-
-my ( $update_w, $read_w );
 
 $update_w = AnyEvent->timer( after => 0, interval => Lim::Config->{zonalizer}->{iana_interval}, cb => sub {
     Lim::DEBUG and $logger->debug('Getting IANA');
