@@ -30,12 +30,47 @@ Lim::UpdateConfig;
 Lim::Config->{zonalizer}->{iana_interval} ||= 86400;
 Lim::Config->{zonalizer}->{limit} ||= 10;
 
-my ($state, %state, %tld, $ongoing);
+my ($state, %state, %tld, $ongoing, $exit);
 $state = tie %state, 'DB_File', $ARGV[1];
 
 #$state{after} = '1464085879:l2ReQ74RSnCtYNrI51-czQ';
 
 my $cv = AnyEvent->condvar;
+
+my @watchers = (
+    AnyEvent->signal(signal => "HUP", cb => sub {
+    }),
+    AnyEvent->signal(signal => "PIPE", cb => sub {
+    }),
+    AnyEvent->signal(signal => "INT", cb => sub {
+        if ( $ongoing ) {
+            $exit = 1;
+        }
+        else {
+            $update_w = $read_w = undef;
+            $cv->send;
+        }
+    }),
+    AnyEvent->signal(signal => "QUIT", cb => sub {
+        if ( $ongoing ) {
+            $exit = 1;
+        }
+        else {
+            $update_w = $read_w = undef;
+            $cv->send;
+        }
+    }),
+    AnyEvent->signal(signal => "TERM", cb => sub {
+        if ( $ongoing ) {
+            $exit = 1;
+        }
+        else {
+            $update_w = $read_w = undef;
+            $cv->send;
+        }
+    })
+);
+
 my ( $update_w, $read_w );
 
 $update_w = AnyEvent->timer( after => 0, interval => Lim::Config->{zonalizer}->{iana_interval}, cb => sub {
@@ -142,6 +177,8 @@ sub fetch_analysis {
             return;
         }
 
+        $ongoing = 1;
+
         my @influx;
         foreach my $analyze ( ref($r->{analysis}) eq 'ARRAY' ? @{$r->{analysis}} : $r->{analysis} ) {
             unless ( exists $tld{$analyze->{fqdn}} ) {
@@ -169,6 +206,11 @@ sub fetch_analysis {
 
             $state{after} = $r->{paging}->{cursors}->{after};
             $state->sync;
+            $ongoing = 0;
+            if ( $exit ) {
+                $cv->send;
+                return;
+            }
             $read_w = AnyEvent->timer( after => 1, cb => \&fetch_analysis );
 
             undef $req;
@@ -187,3 +229,4 @@ sub fatal {
 }
 
 $cv->recv;
+Lim::INFO and $logger->info('Exit');
