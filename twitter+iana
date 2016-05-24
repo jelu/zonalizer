@@ -24,10 +24,11 @@ log4perl.appender.Screen.layout.ConversionPattern = %d %F [%L] %p: %m%n
 ) );
 my $logger = Log::Log4perl->get_logger;
 
-# twitter
-
 Lim::LoadConfig($ARGV[0]);
+Lim::LoadConfig($ARGV[2]);
 Lim::UpdateConfig;
+
+# twitter
 
 my ($state, %state);
 $state = tie %state, 'DB_File', $ARGV[1];
@@ -51,9 +52,6 @@ my $twitter = Net::Twitter->new(
 );
 
 # iana
-
-Lim::LoadConfig($ARGV[2]);
-Lim::UpdateConfig;
 
 Lim::Config->{zonalizer}->{iana_interval} ||= 86400;
 Lim::Config->{zonalizer}->{next_interval} ||= 60;
