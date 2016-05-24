@@ -9,6 +9,7 @@ use Lim::Plugin::Zonalizer;
 use Net::Twitter;
 use DB_File;
 use HTTP::Status;
+use AnyEvent::HTTP;
 
 use Data::Dumper;
 
