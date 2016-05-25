@@ -97,7 +97,10 @@ $update_w = AnyEvent->timer( after => 0, interval => Lim::Config->{zonalizer}->{
             }
             if ($company and /td>([^<]+)/o) {
                 $tld{$last}->{company} = $1;
-                $tld{$last}->{company} =~ s/[\s,]/_/go;
+                $tld{$last}->{company} =~ s/,/\./go;
+                $tld{$last}->{company} =~ s/"//go;
+                $tld{$last}->{company} =~ s/\&[a-z];//go;
+                $tld{$last}->{company} =~ s/ /\\ /go;
                 $company = 0;
                 $tlds++;
                 next;
@@ -188,10 +191,7 @@ sub fetch_analysis {
             my $tags = 'fqdn='.$analyze->{fqdn}.',type='.$tld{$analyze->{fqdn}}->{type}.',company='.$tld{$analyze->{fqdn}}->{company};
             my $time = $analyze->{created}.'000000000';
             push(@influx,
-                'critical,'.$tags.' value='.$analyze->{summary}->{critical}.' '.$time,
-                'error,'.$tags.' value='.$analyze->{summary}->{error}.' '.$time,
-                'warning,'.$tags.' value='.$analyze->{summary}->{warning}.' '.$time,
-                'notice,'.$tags.' value='.$analyze->{summary}->{notice}.' '.$time
+                'summary,'.$tags.' critical='.$analyze->{summary}->{critical}.',error='.$analyze->{summary}->{error}.',warning='.$analyze->{summary}->{warning}.',notice='.$analyze->{summary}->{notice}.' '.$time,
             );
         }
 
