@@ -9,7 +9,6 @@ use Lim::Plugin::Zonalizer qw(:status);
 use DB_File;
 use HTTP::Status;
 use AnyEvent::HTTP;
-use Lim::RPC::TLS;
 
 use Data::Dumper;
 
