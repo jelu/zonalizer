@@ -329,7 +329,7 @@
                             $('.container > p').empty();
                             for (var i = 0, m = 0; m < 10 && i < data.results.length; i++) {
                                 if (data.results[i].message) {
-                                    $('<span class="clearfix"></span>').text(data.results[i].message.replace(/,[^ ]/g, ', ').replace(/;[^ ]/g, '; ')).appendTo('.container > p');
+                                    $('<span class="clearfix"></span>').text(data.results[i].message.replace(/,(?! )/g, ', ').replace(/;(?! )/g, '; ')).appendTo('.container > p');
                                     m++;
                                 }
                             }
