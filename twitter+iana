@@ -465,7 +465,7 @@ $queue_w2 = AnyEvent->timer( after => 5, interval => 5, cb => sub {
     });
 });
 
-$next_w2 = AnyEvent->timer( after => 3, interval => Lim::Config->{zonalizer}->{next_interval}, cb => sub {
+$next_w2 = AnyEvent->timer( after => 13, interval => Lim::Config->{zonalizer}->{next_interval}, cb => sub {
     if ( $state2{queue} or $state2{ongoing} ) {
         return;
     }
