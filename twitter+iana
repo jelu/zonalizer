@@ -70,7 +70,7 @@ unless ( $state2{ongoing} ) {
 
 my $cv = AnyEvent->condvar;
 
-my ( $ongoing, $ongoing_w, $queue_w, $diffroot_w, $mention_w );
+my ( $ongoing, $ongoing_w, $queue_w, $diffroot_w, $mention_w, $ianawhois_w );
 
 $ongoing_w = AnyEvent->timer( after => 5, interval => 5, cb => sub {
     unless ( $state{ongoing} ) {
@@ -239,6 +239,58 @@ $diffroot_w = AnyEvent->timer( after => 1, interval => 600, cb => sub {
     if ( %dn ) {
         Lim::INFO and $logger->info('Queueing ', join(', ', keys %dn));
         $state{queue} .= ( $state{queue} ? ' ' : '' ).join( ' ', map { join(':', 'c', 'diffroot', $dn{$_}, $_ ) } keys %dn );
+        $state->sync;
+    }
+});
+
+$ianawhois_w = AnyEvent->timer( after => 1, interval => 600, cb => sub {
+    my $tweets;
+
+    unless ( $state{ianawhois_id} ) {
+        $state{ianawhois_id} = 0;
+    }
+    eval {
+        $tweets = $twitter->user_timeline({
+            screen_name => 'ianawhois',
+            count => 50,
+            trim_user => 1,
+            exclude_replies => 1,
+            $state{ianawhois_id} ? ( since_id => $state{ianawhois_id} ) : (),
+        });
+    };
+    if ( $@ ) {
+        Lim::ERR and $logger->error('Net::Twitter error getting tweets: ', $@);
+        return;
+    }
+
+    unless ( ref($tweets) eq 'ARRAY' ) {
+        fatal('invalid response from twitter->user_timeline');
+        return;
+    }
+    foreach my $tweet (@$tweets) {
+        unless ( ref($tweet) eq 'HASH' and $tweet->{id} and $tweet->{text} ) {
+            fatal('invalid response from twitter->user_timeline');
+            return;
+        }
+    }
+
+    my %dn;
+    foreach my $tweet (@$tweets) {
+        utf8::encode($tweet->{text});
+        Lim::DEBUG and $logger->debug('@ianawhois: ', $tweet->{id}, ' ', $tweet->{text});
+
+        if ( $tweet->{id} > $state{ianawhois_id} ) {
+            $state{ianawhois_id} = $tweet->{id};
+        }
+
+        if ( $tweet->{text} =~ /^(?:add|new)\s+([a-z0-9-]+)/o ) {
+            $dn{$1} ||= $tweet->{id};
+        }
+    }
+
+    if ( %dn ) {
+        Lim::INFO and $logger->info('Queueing ', join(', ', keys %dn));
+        $state{queue} .= ( $state{queue} ? ' ' : '' ).join( ' ', map { join(':', 'c', 'ianawhois', $dn{$_}, $_ ) } keys %dn );
         $state->sync;
     }
 });
@@ -489,7 +541,7 @@ $next_w2 = AnyEvent->timer( after => 13, interval => Lim::Config->{zonalizer}->{
 
 sub fatal {
     $logger->fatal(@_);
-    $ongoing_w = $queue_w = $diffroot_w = $mention_w = undef;
+    $ongoing_w = $queue_w = $diffroot_w = $mention_w = $ianawhois_w = undef;
     $update_w2 = $ongoing_w2 = $queue_w2 = $next_w2 = undef;
     $cv->send;
 }
