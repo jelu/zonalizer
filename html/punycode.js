@@ -302,7 +302,7 @@ const encode = function(input) {
 	let bias = initialBias;
 
 	// Handle the basic code points.
-	for (currentValue of input) {
+	for (let currentValue of input) {
 		if (currentValue < 0x80) {
 			output.push(stringFromCharCode(currentValue));
 		}
@@ -325,7 +325,7 @@ const encode = function(input) {
 		// All non-basic code points < n have been handled already. Find the next
 		// larger one:
 		let m = maxInt;
-		for (currentValue of input) {
+		for (let currentValue of input) {
 			if (currentValue >= n && currentValue < m) {
 				m = currentValue;
 			}
@@ -341,7 +341,7 @@ const encode = function(input) {
 		delta += (m - n) * handledCPCountPlusOne;
 		n = m;
 
-		for (currentValue of input) {
+		for (let currentValue of input) {
 			if (currentValue < n && ++delta > maxInt) {
 				error('overflow');
 			}
