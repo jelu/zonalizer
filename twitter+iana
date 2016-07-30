@@ -239,8 +239,8 @@ $diffroot_w = AnyEvent->timer( after => 1, interval => 600, cb => sub {
     if ( %dn ) {
         Lim::INFO and $logger->info('Queueing ', join(', ', keys %dn));
         $state{queue} .= ( $state{queue} ? ' ' : '' ).join( ' ', map { join(':', 'c', 'diffroot', $dn{$_}, $_ ) } keys %dn );
-        $state->sync;
     }
+    $state->sync;
 });
 
 $ianawhois_w = AnyEvent->timer( after => 1, interval => 600, cb => sub {
@@ -283,7 +283,16 @@ $ianawhois_w = AnyEvent->timer( after => 1, interval => 600, cb => sub {
             $state{ianawhois_id} = $tweet->{id};
         }
 
-        if ( $tweet->{text} =~ /^(?:add|new)\s+([a-z0-9-]+)/o ) {
+        if ( $tweet->{text} =~ /^IANA\s+whois:\s+new\s+TLD\s+\S+\s+\(([A-Za-z0-9-]+)\)/o ) {
+            $dn{$1} ||= $tweet->{id};
+        }
+        elsif ( $tweet->{text} =~ /^IANA\s+whois:\s+new\s+TLD\s+([A-Za-z0-9-]+)/o ) {
+            $dn{$1} ||= $tweet->{id};
+        }
+        elsif ( $tweet->{text} =~ /^IANA\s+whois:\s+update\s+for\s+\S+\s+\(([A-Za-z0-9-]+)\)/o ) {
+            $dn{$1} ||= $tweet->{id};
+        }
+        elsif ( $tweet->{text} =~ /^IANA\s+whois:\s+update\s+for\s+([A-Za-z0-9-]+)/o ) {
             $dn{$1} ||= $tweet->{id};
         }
     }
@@ -291,8 +300,8 @@ $ianawhois_w = AnyEvent->timer( after => 1, interval => 600, cb => sub {
     if ( %dn ) {
         Lim::INFO and $logger->info('Queueing ', join(', ', keys %dn));
         $state{queue} .= ( $state{queue} ? ' ' : '' ).join( ' ', map { join(':', 'c', 'ianawhois', $dn{$_}, $_ ) } keys %dn );
-        $state->sync;
     }
+    $state->sync;
 });
 
 $mention_w = AnyEvent->timer( after => 1, interval => 60, cb => sub {
