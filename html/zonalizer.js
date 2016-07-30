@@ -1070,8 +1070,8 @@
                 $('form:eq(0)').submit(function (event) {
                     var fqdn = $('input:eq(0)').val();
 
-                    if (fqdn && fqdn.match(/^[a-zA-Z0-9\.-]+$/)) {
-                        zonalizer.browse.search(fqdn);
+                    if (fqdn && fqdn.match(/^[^ ]+$/)) {
+                        zonalizer.browse.search(window.punycode.toASCII(fqdn));
                     }
                     else {
                         zonalizer.browse.search();
