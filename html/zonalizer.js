@@ -979,7 +979,7 @@
                 var f = function() {
                     var zone = $('input:eq(0)').val();
 
-                    if (zone && zone.match(/^[a-zA-Z0-9\.-]+$/)) {
+                    if (zone && zone.match(/^[^ ]+$/)) {
                         $('form:eq(0) button:eq(1)').prop('disabled', false);
                     }
                     else {
@@ -991,11 +991,11 @@
                 $('form:eq(0)').submit(function (event) {
                     var zone = $('input:eq(0)').val();
 
-                    if (zone && zone.match(/^[a-zA-Z0-9\.-]+$/)) {
+                    if (zone && zone.match(/^[^ ]+$/)) {
                         $('.options').hide();
                         zonalizer.mini.stop();
                         zonalizer.status.stop();
-                        zonalizer.analyze.zone(zone);
+                        zonalizer.analyze.zone(window.punycode.toASCII(zone));
                     }
 
                     event.preventDefault();
