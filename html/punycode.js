@@ -325,7 +325,7 @@ const encode = function(input) {
 		// All non-basic code points < n have been handled already. Find the next
 		// larger one:
 		let m = maxInt;
-		for (const currentValue of input) {
+		for (currentValue of input) {
 			if (currentValue >= n && currentValue < m) {
 				m = currentValue;
 			}
@@ -341,7 +341,7 @@ const encode = function(input) {
 		delta += (m - n) * handledCPCountPlusOne;
 		n = m;
 
-		for (const currentValue of input) {
+		for (currentValue of input) {
 			if (currentValue < n && ++delta > maxInt) {
 				error('overflow');
 			}
