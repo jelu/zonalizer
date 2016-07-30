@@ -302,7 +302,7 @@ const encode = function(input) {
 	let bias = initialBias;
 
 	// Handle the basic code points.
-	for (const currentValue of input) {
+	for (currentValue of input) {
 		if (currentValue < 0x80) {
 			output.push(stringFromCharCode(currentValue));
 		}
